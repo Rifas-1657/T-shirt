@@ -1,0 +1,48 @@
+{
+  "id": "full-sleeve",
+  "label": "Full-sleeve T-shirt",
+  "version": 2,
+  "printableMeshes": [
+    "Shirt"
+  ],
+  "colorableMaterials": [
+    "Fabric",
+    "Rib"
+  ],
+  "printZones": [
+    {
+      "id": "front",
+      "label": "Front",
+      "widthCm": 30.0,
+      "heightCm": 40.0,
+      "uvRect": {
+        "u0": 0.15625,
+        "v0": 0.2625,
+        "u1": 0.34375,
+        "v1": 0.7625
+      }
+    },
+    {
+      "id": "back",
+      "label": "Back",
+      "widthCm": 30.0,
+      "heightCm": 45.0,
+      "uvRect": {
+        "u0": 0.65625,
+        "v0": 0.25,
+        "u1": 0.84375,
+        "v1": 0.8125
+      }
+    }
+  ],
+  "span": 0.8,
+  "z0": -0.04,
+  "size": [
+    0.5828,
+    0.7263,
+    0.0835
+  ],
+  "centerDrop": 0.4332,
+  "simulated": true,
+  "triangles": 44682
+}

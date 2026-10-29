@@ -1,0 +1,273 @@
+{
+  "source": "tshirt-template-v1.glb",
+  "objects": [
+    {
+      "name": "TShirtTemplate",
+      "type": "EMPTY",
+      "parent": null,
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "Collar",
+      "type": "MESH",
+      "parent": "TShirtTemplate",
+      "location": [
+        0.017999999225139618,
+        0.0,
+        -0.7919999957084656
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 740,
+      "triangles": 1480,
+      "materials": [
+        "Fabric"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.9990000128746033,
+            0.9990000128746033
+          ],
+          "v_range": [
+            0.9977255463600159,
+            0.9986125826835632
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.07709497213363647,
+        -0.03589921444654465,
+        -0.1532588005065918
+      ],
+      "world_bbox_max": [
+        0.1131872609257698,
+        0.00749962218105793,
+        -0.06455320119857788
+      ]
+    },
+    {
+      "name": "HangerHook",
+      "type": "MESH",
+      "parent": "TShirtTemplate",
+      "location": [
+        0.017999999225139618,
+        0.0,
+        -0.7919999957084656
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 1220,
+      "triangles": 2396,
+      "materials": [
+        "HangerChrome"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.9990000128746033,
+            0.9990000128746033
+          ],
+          "v_range": [
+            0.9968830943107605,
+            0.9978799819946289
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.019689641892910004,
+        -0.0018070078222081065,
+        -0.07999998331069946
+      ],
+      "world_bbox_max": [
+        0.019899999722838402,
+        0.0018070080550387502,
+        0.019691526889801025
+      ]
+    },
+    {
+      "name": "HangerWood",
+      "type": "MESH",
+      "parent": "TShirtTemplate",
+      "location": [
+        0.017999999225139618,
+        0.0,
+        -0.7919999957084656
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 408,
+      "triangles": 764,
+      "materials": [
+        "HangerWood"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.9990000128746033,
+            0.9990000128746033
+          ],
+          "v_range": [
+            0.9978605508804321,
+            0.9985193610191345
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.15985563397407532,
+        -0.007500001695007086,
+        -0.14393508434295654
+      ],
+      "world_bbox_max": [
+        0.1958554983139038,
+        0.007500001695007086,
+        -0.07805359363555908
+      ]
+    },
+    {
+      "name": "Shirt",
+      "type": "MESH",
+      "parent": "TShirtTemplate",
+      "location": [
+        0.017999999225139618,
+        0.0,
+        -0.7919999957084656
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 25592,
+      "triangles": 50294,
+      "materials": [
+        "Fabric"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.038750000298023224,
+            0.9612500071525574
+          ],
+          "v_range": [
+            0.04500001668930054,
+            0.9524999856948853
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.3199999928474426,
+        -0.03348250314593315,
+        -0.7960000038146973
+      ],
+      "world_bbox_max": [
+        0.35600000619888306,
+        0.03348250314593315,
+        -0.06999999284744263
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "Fabric",
+      "nodes": [
+        "ShaderNodeBsdfPrincipled",
+        "ShaderNodeOutputMaterial",
+        "ShaderNodeNormalMap",
+        "ShaderNodeTexImage",
+        "ShaderNodeMapping",
+        "ShaderNodeUVMap"
+      ]
+    },
+    {
+      "name": "HangerChrome",
+      "nodes": [
+        "ShaderNodeBsdfPrincipled",
+        "ShaderNodeOutputMaterial"
+      ]
+    },
+    {
+      "name": "HangerWood",
+      "nodes": [
+        "ShaderNodeBsdfPrincipled",
+        "ShaderNodeOutputMaterial"
+      ]
+    }
+  ],
+  "images": [
+    {
+      "name": "KnitNormal",
+      "size": [
+        512,
+        512
+      ],
+      "channels": 4,
+      "colorspace": "Non-Color"
+    }
+  ],
+  "scene_bbox": {
+    "min": [
+      -0.3199999928474426,
+      -0.03589921444654465,
+      -0.7960000038146973
+    ],
+    "max": [
+      0.35600000619888306,
+      0.03348250314593315,
+      0.019691526889801025
+    ],
+    "size": [
+      0.6759999990463257,
+      0.0693817138671875,
+      0.8156915307044983
+    ]
+  },
+  "total_triangles": 54934
+}

@@ -1,0 +1,48 @@
+{
+  "id": "oversized",
+  "label": "Oversized T-shirt",
+  "version": 2,
+  "printableMeshes": [
+    "Shirt"
+  ],
+  "colorableMaterials": [
+    "Fabric",
+    "Rib"
+  ],
+  "printZones": [
+    {
+      "id": "front",
+      "label": "Front",
+      "widthCm": 34.0,
+      "heightCm": 44.0,
+      "uvRect": {
+        "u0": 0.1576086956521739,
+        "v0": 0.2608695652173913,
+        "u1": 0.3423913043478261,
+        "v1": 0.7391304347826088
+      }
+    },
+    {
+      "id": "back",
+      "label": "Back",
+      "widthCm": 34.0,
+      "heightCm": 50.0,
+      "uvRect": {
+        "u0": 0.6576086956521738,
+        "v0": 0.23913043478260868,
+        "u1": 0.8423913043478262,
+        "v1": 0.782608695652174
+      }
+    }
+  ],
+  "span": 0.92,
+  "z0": -0.04,
+  "size": [
+    0.8492,
+    0.8024,
+    0.085
+  ],
+  "centerDrop": 0.4712,
+  "simulated": true,
+  "triangles": 51666
+}

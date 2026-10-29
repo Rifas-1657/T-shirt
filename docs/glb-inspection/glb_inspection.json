@@ -1,0 +1,556 @@
+{
+  "source": "cloth_rack.glb",
+  "objects": [
+    {
+      "name": "Sketchfab_model",
+      "type": "EMPTY",
+      "parent": null,
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "root",
+      "type": "EMPTY",
+      "parent": "Sketchfab_model",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "GLTF_SceneRootNode",
+      "type": "EMPTY",
+      "parent": "root",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "mesh_uv.obj_0",
+      "type": "EMPTY",
+      "parent": "GLTF_SceneRootNode",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "Object_4",
+      "type": "MESH",
+      "parent": "mesh_uv.obj_0",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 65532,
+      "triangles": 104830,
+      "materials": [
+        "defaultMat"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.0,
+            0.987276017665863
+          ],
+          "v_range": [
+            0.0,
+            0.9979529976844788
+          ]
+        },
+        {
+          "name": "UVMap.001",
+          "u_range": [
+            0.0,
+            0.987276017665863
+          ],
+          "v_range": [
+            0.0,
+            0.9979529976844788
+          ]
+        },
+        {
+          "name": "UVMap.002",
+          "u_range": [
+            0.0,
+            0.987276017665863
+          ],
+          "v_range": [
+            0.0,
+            0.9979529976844788
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.8952351212501526,
+        -0.09768655151128769,
+        -0.3619566857814789
+      ],
+      "world_bbox_max": [
+        0.34692490100860596,
+        0.09943588078022003,
+        0.5089325308799744
+      ]
+    },
+    {
+      "name": "Object_5",
+      "type": "MESH",
+      "parent": "mesh_uv.obj_0",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 65532,
+      "triangles": 101910,
+      "materials": [
+        "defaultMat"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            -0.0,
+            0.987276017665863
+          ],
+          "v_range": [
+            0.0,
+            0.9938610196113586
+          ]
+        },
+        {
+          "name": "UVMap.001",
+          "u_range": [
+            -0.0,
+            0.987276017665863
+          ],
+          "v_range": [
+            0.0,
+            0.9938610196113586
+          ]
+        },
+        {
+          "name": "UVMap.002",
+          "u_range": [
+            -0.0,
+            0.987276017665863
+          ],
+          "v_range": [
+            0.0,
+            0.9938610196113586
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.8999999761581421,
+        -0.20142234861850739,
+        -0.5765541195869446
+      ],
+      "world_bbox_max": [
+        0.774387001991272,
+        0.1691877543926239,
+        0.5608399510383606
+      ]
+    },
+    {
+      "name": "Object_6",
+      "type": "MESH",
+      "parent": "mesh_uv.obj_0",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 65532,
+      "triangles": 97883,
+      "materials": [
+        "defaultMat"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            -0.0,
+            0.9872739911079407
+          ],
+          "v_range": [
+            0.0,
+            0.9995909929275513
+          ]
+        },
+        {
+          "name": "UVMap.001",
+          "u_range": [
+            -0.0,
+            0.9872739911079407
+          ],
+          "v_range": [
+            0.0,
+            0.9995909929275513
+          ]
+        },
+        {
+          "name": "UVMap.002",
+          "u_range": [
+            -0.0,
+            0.9872739911079407
+          ],
+          "v_range": [
+            0.0,
+            0.9995909929275513
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.8997906446456909,
+        -0.16925038397312164,
+        -0.5766332745552063
+      ],
+      "world_bbox_max": [
+        0.8895024657249451,
+        0.20147183537483215,
+        0.5766332745552063
+      ]
+    },
+    {
+      "name": "Object_7",
+      "type": "MESH",
+      "parent": "mesh_uv.obj_0",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 65532,
+      "triangles": 93845,
+      "materials": [
+        "defaultMat"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            -0.0,
+            0.9872840046882629
+          ],
+          "v_range": [
+            0.0,
+            0.9999499917030334
+          ]
+        },
+        {
+          "name": "UVMap.001",
+          "u_range": [
+            -0.0,
+            0.9872840046882629
+          ],
+          "v_range": [
+            0.0,
+            0.9999499917030334
+          ]
+        },
+        {
+          "name": "UVMap.002",
+          "u_range": [
+            -0.0,
+            0.9872840046882629
+          ],
+          "v_range": [
+            0.0,
+            0.9999499917030334
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.7467936277389526,
+        -0.10012339800596237,
+        -0.5401910543441772
+      ],
+      "world_bbox_max": [
+        0.8969564437866211,
+        0.09865768253803253,
+        0.5717926025390625
+      ]
+    },
+    {
+      "name": "Object_8",
+      "type": "MESH",
+      "parent": "mesh_uv.obj_0",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 65532,
+      "triangles": 77949,
+      "materials": [
+        "defaultMat"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.0,
+            0.9872819781303406
+          ],
+          "v_range": [
+            0.0,
+            0.9995650053024292
+          ]
+        },
+        {
+          "name": "UVMap.001",
+          "u_range": [
+            0.0,
+            0.9872819781303406
+          ],
+          "v_range": [
+            0.0,
+            0.9995650053024292
+          ]
+        },
+        {
+          "name": "UVMap.002",
+          "u_range": [
+            0.0,
+            0.9872819781303406
+          ],
+          "v_range": [
+            0.0,
+            0.9995650053024292
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.896346390247345,
+        -0.20147183537483215,
+        -0.5766217708587646
+      ],
+      "world_bbox_max": [
+        0.8999999761581421,
+        0.20115362107753754,
+        0.5765706300735474
+      ]
+    },
+    {
+      "name": "Object_9",
+      "type": "MESH",
+      "parent": "mesh_uv.obj_0",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_euler": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "vertices": 22863,
+      "triangles": 23559,
+      "materials": [
+        "defaultMat"
+      ],
+      "uv_layers": [
+        {
+          "name": "UVMap",
+          "u_range": [
+            0.0002880000101868063,
+            0.9872810244560242
+          ],
+          "v_range": [
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "name": "UVMap.001",
+          "u_range": [
+            0.0002880000101868063,
+            0.9872810244560242
+          ],
+          "v_range": [
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "name": "UVMap.002",
+          "u_range": [
+            0.0002880000101868063,
+            0.9872810244560242
+          ],
+          "v_range": [
+            0.0,
+            1.0
+          ]
+        }
+      ],
+      "world_bbox_min": [
+        -0.899736225605011,
+        -0.1910896748304367,
+        -0.5442832112312317
+      ],
+      "world_bbox_max": [
+        0.8529679179191589,
+        0.09537502378225327,
+        0.571749746799469
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "defaultMat",
+      "nodes": [
+        "ShaderNodeBsdfPrincipled",
+        "ShaderNodeOutputMaterial",
+        "ShaderNodeTexImage",
+        "ShaderNodeSeparateColor",
+        "ShaderNodeTexImage",
+        "ShaderNodeUVMap"
+      ]
+    }
+  ],
+  "images": [
+    {
+      "name": "Image_0",
+      "size": [
+        4096,
+        4096
+      ],
+      "channels": 4,
+      "colorspace": "sRGB"
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        4096,
+        4096
+      ],
+      "channels": 4,
+      "colorspace": "Non-Color"
+    }
+  ],
+  "scene_bbox": {
+    "min": [
+      -0.8999999761581421,
+      -0.20147183537483215,
+      -0.5766332745552063
+    ],
+    "max": [
+      0.8999999761581421,
+      0.20147183537483215,
+      0.5766332745552063
+    ],
+    "size": [
+      1.7999999523162842,
+      0.4029436707496643,
+      1.1532665491104126
+    ]
+  },
+  "total_triangles": 499976
+}

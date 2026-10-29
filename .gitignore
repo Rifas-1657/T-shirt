@@ -1,0 +1,22 @@
+node_modules/
+.next/
+out/
+data/
+test-results/
+playwright-report/
+*.tsbuildinfo
+next-env.d.ts
+.env*.local
+.env
+# large processed intermediates (reproducible via scripts)
+assets/processed/**/*.glb
+assets/processed/**/*.blend
+assets/processed/**/*.blend1
+assets/processed/**/log-*.txt
+data-e2e/
+
+# third-party reference video (copyrighted; kept locally only) and frames extracted from it
+references/
+docs/video-frames/
+# raw texture dumps from the GLB inspection (large; reproducible with scripts/blender/inspect_glb.py)
+docs/glb-inspection/atlas_*.png

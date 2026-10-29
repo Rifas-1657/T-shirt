@@ -1,0 +1,48 @@
+{
+  "id": "hoodie",
+  "label": "Hoodie",
+  "version": 2,
+  "printableMeshes": [
+    "Shirt"
+  ],
+  "colorableMaterials": [
+    "Fabric",
+    "Rib"
+  ],
+  "printZones": [
+    {
+      "id": "front",
+      "label": "Front",
+      "widthCm": 26.0,
+      "heightCm": 24.0,
+      "uvRect": {
+        "u0": 0.17073170731707316,
+        "v0": 0.4878048780487805,
+        "u1": 0.32926829268292684,
+        "v1": 0.7804878048780488
+      }
+    },
+    {
+      "id": "back",
+      "label": "Back",
+      "widthCm": 32.0,
+      "heightCm": 32.0,
+      "uvRect": {
+        "u0": 0.6524390243902439,
+        "v0": 0.17073170731707318,
+        "u1": 0.8475609756097561,
+        "v1": 0.5609756097560975
+      }
+    }
+  ],
+  "span": 0.82,
+  "z0": -0.04,
+  "size": [
+    0.6404,
+    0.7367,
+    0.1056
+  ],
+  "centerDrop": 0.4384,
+  "simulated": true,
+  "triangles": 61732
+}
