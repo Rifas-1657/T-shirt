@@ -1,0 +1,93 @@
+{
+  "generator": "scripts/blender/render_perfume_shots.py",
+  "resolution": [
+    1200,
+    1600
+  ],
+  "background": "#f4f2ef",
+  "device": "OPTIX",
+  "samples": 192,
+  "products": [
+    {
+      "sku": "MDP-QASR-OUD",
+      "name": "Qasr Oud",
+      "bottle": "qasr",
+      "liquid": "#8a4a12",
+      "cap": "gold",
+      "concentration": "Extrait De Parfum",
+      "volume": "100 ML",
+      "files": {
+        "front": "MDP-QASR-OUD/front.png",
+        "three-quarter": "MDP-QASR-OUD/three-quarter.png",
+        "side": "MDP-QASR-OUD/side.png",
+        "back": "MDP-QASR-OUD/back.png"
+      },
+      "seconds": 270.2
+    },
+    {
+      "sku": "MDP-WARD-TAIF",
+      "name": "Ward Taifi",
+      "bottle": "ward",
+      "liquid": "#e39aa8",
+      "cap": "rose gold",
+      "concentration": "Eau De Parfum",
+      "volume": "75 ML",
+      "files": {
+        "front": "MDP-WARD-TAIF/front.png",
+        "three-quarter": "MDP-WARD-TAIF/three-quarter.png",
+        "side": "MDP-WARD-TAIF/side.png",
+        "back": "MDP-WARD-TAIF/back.png"
+      },
+      "seconds": 288.3
+    },
+    {
+      "sku": "MDP-MAJLIS-NOIR",
+      "name": "Majlis Noir",
+      "bottle": "majlis",
+      "liquid": "#7a0f24",
+      "cap": "onyx",
+      "concentration": "Parfum",
+      "volume": "50 ML",
+      "files": {
+        "front": "MDP-MAJLIS-NOIR/front.png",
+        "three-quarter": "MDP-MAJLIS-NOIR/three-quarter.png",
+        "side": "MDP-MAJLIS-NOIR/side.png",
+        "back": "MDP-MAJLIS-NOIR/back.png"
+      },
+      "seconds": 142.5
+    },
+    {
+      "sku": "MDP-DOHA-PEARL",
+      "name": "Doha Pearl",
+      "bottle": "ward",
+      "liquid": "#f1e8da",
+      "cap": "silver",
+      "concentration": "Eau De Parfum",
+      "volume": "100 ML",
+      "files": {
+        "front": "MDP-DOHA-PEARL/front.png",
+        "three-quarter": "MDP-DOHA-PEARL/three-quarter.png",
+        "side": "MDP-DOHA-PEARL/side.png",
+        "back": "MDP-DOHA-PEARL/back.png"
+      },
+      "seconds": 139.1
+    },
+    {
+      "sku": "MDP-SADU-SAFFRON",
+      "name": "Sadu Saffron",
+      "bottle": "majlis",
+      "liquid": "#d68a1c",
+      "cap": "gold",
+      "concentration": "Extrait De Parfum",
+      "volume": "50 ML",
+      "files": {
+        "front": "MDP-SADU-SAFFRON/front.png",
+        "three-quarter": "MDP-SADU-SAFFRON/three-quarter.png",
+        "side": "MDP-SADU-SAFFRON/side.png",
+        "back": "MDP-SADU-SAFFRON/back.png"
+      },
+      "seconds": 125.4
+    }
+  ],
+  "totalSeconds": 965.5
+}

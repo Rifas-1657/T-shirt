@@ -1,0 +1,41 @@
+{
+  "qasr": {
+    "id": "qasr",
+    "height": 0.147,
+    "width": 0.072,
+    "triangles": 938,
+    "label": "Qasr",
+    "blurb": "Faceted crystal flacon",
+    "labelSize": [
+      0.044,
+      0.018
+    ],
+    "capTrim": false
+  },
+  "ward": {
+    "id": "ward",
+    "height": 0.141,
+    "width": 0.084,
+    "triangles": 5649,
+    "label": "Ward",
+    "blurb": "Rounded rose bottle",
+    "labelSize": [
+      0.04,
+      0.016
+    ],
+    "capTrim": false
+  },
+  "majlis": {
+    "id": "majlis",
+    "height": 0.182,
+    "width": 0.0554,
+    "triangles": 1684,
+    "label": "Majlis",
+    "blurb": "Octagonal column, dome cap",
+    "labelSize": [
+      0.03,
+      0.034
+    ],
+    "capTrim": true
+  }
+}

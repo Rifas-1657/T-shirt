@@ -1,9 +1,10 @@
 // UI/scene state for the showroom: which garment is hovered/selected and which view is active.
 import { create } from 'zustand';
-import type { GarmentCategory } from '@/lib/types';
+import type { GarmentCategory, ZoneId } from '@/lib/types';
 
 export type Mode = 'collection' | 'detail' | 'customize';
-export type Side = 'front' | 'back';
+/** The side of the garment turned toward the customer: one per print zone. */
+export type Side = ZoneId;
 export type RackView = GarmentCategory | 'all';
 
 interface ShowroomState {

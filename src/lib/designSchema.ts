@@ -1,6 +1,6 @@
 // Validation and (de)serialisation of versioned design JSON. Used by the client before saving
 // and again on the server, which never trusts the client copy.
-import { DESIGN_SCHEMA_VERSION, type Design, type FontKey, type Layer, type PublicProduct, type ZoneId } from './types';
+import { DESIGN_SCHEMA_VERSION, emptyZones, type Design, type FontKey, type Layer, type PublicProduct, type ZoneId } from './types';
 
 export const LIMITS = {
   maxLayersPerZone: 24,
@@ -82,7 +82,7 @@ export function validateDesign(raw: unknown, product: PublicProduct | null): Res
   if (typeof d.size !== 'string' || !product.sizes.includes(d.size)) errors.push('size: not offered for this product');
   const zonesRaw = (d.zones ?? {}) as Record<string, unknown>;
   const zoneIds = product.version.modelConfig.printZones.map((z) => z.id);
-  const zones = { front: [], back: [] } as Record<ZoneId, Layer[]>;
+  const zones = emptyZones();
   for (const key of Object.keys(zonesRaw)) {
     if (!zoneIds.includes(key as ZoneId)) {
       const layers = zonesRaw[key];
@@ -126,6 +126,6 @@ export function emptyDesign(product: PublicProduct): Design {
     textureConfigVersion: 1,
     color: product.colors[0],
     size: product.sizes[Math.min(2, product.sizes.length - 1)] ?? product.sizes[0],
-    zones: { front: [], back: [] },
+    zones: emptyZones(),
   };
 }

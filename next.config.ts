@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // a stray lockfile in the user's home directory must not become the workspace root
   turbopack: { root: path.resolve('.') },
-  // sharp and gltf-transform run only in route handlers (Node runtime)
-  serverExternalPackages: ['sharp', '@gltf-transform/core', '@gltf-transform/functions', '@gltf-transform/extensions', 'meshoptimizer'],
+  // sharp, gltf-transform and the AI cut-out (onnxruntime) run only in route handlers (Node runtime)
+  serverExternalPackages: ['sharp', '@gltf-transform/core', '@gltf-transform/functions', '@gltf-transform/extensions', 'meshoptimizer', '@huggingface/transformers', 'onnxruntime-node'],
   async headers() {
     return [
       {

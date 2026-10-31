@@ -1,7 +1,7 @@
 {
   "id": "hoodie",
   "label": "Hoodie",
-  "version": 2,
+  "version": 3,
   "printableMeshes": [
     "Shirt"
   ],
@@ -13,8 +13,8 @@
     {
       "id": "front",
       "label": "Front",
-      "widthCm": 26.0,
-      "heightCm": 24.0,
+      "widthCm": 26,
+      "heightCm": 24,
       "uvRect": {
         "u0": 0.17073170731707316,
         "v0": 0.4878048780487805,
@@ -25,24 +25,50 @@
     {
       "id": "back",
       "label": "Back",
-      "widthCm": 32.0,
-      "heightCm": 32.0,
+      "widthCm": 32,
+      "heightCm": 32,
       "uvRect": {
         "u0": 0.6524390243902439,
         "v0": 0.17073170731707318,
         "u1": 0.8475609756097561,
         "v1": 0.5609756097560975
       }
+    },
+    {
+      "id": "sleeveL",
+      "label": "Left sleeve",
+      "widthCm": 4.2,
+      "heightCm": 9,
+      "angle": -8.3,
+      "uvRect": {
+        "u0": 0.43232,
+        "v0": 0.5061,
+        "u1": 0.45793,
+        "v1": 0.61585
+      }
+    },
+    {
+      "id": "sleeveR",
+      "label": "Right sleeve",
+      "widthCm": 4.2,
+      "heightCm": 9,
+      "angle": 8.3,
+      "uvRect": {
+        "u0": 0.04207,
+        "v0": 0.5061,
+        "u1": 0.06768,
+        "v1": 0.61585
+      }
     }
   ],
   "span": 0.82,
   "z0": -0.04,
   "size": [
-    0.6404,
-    0.7367,
-    0.1056
+    0.7335,
+    0.7314,
+    0.0803
   ],
-  "centerDrop": 0.4384,
+  "centerDrop": 0.4361,
   "simulated": true,
-  "triangles": 61732
+  "triangles": 61788
 }

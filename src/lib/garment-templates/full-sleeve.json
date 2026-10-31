@@ -1,7 +1,7 @@
 {
   "id": "full-sleeve",
   "label": "Full-sleeve T-shirt",
-  "version": 2,
+  "version": 3,
   "printableMeshes": [
     "Shirt"
   ],
@@ -13,8 +13,8 @@
     {
       "id": "front",
       "label": "Front",
-      "widthCm": 30.0,
-      "heightCm": 40.0,
+      "widthCm": 30,
+      "heightCm": 40,
       "uvRect": {
         "u0": 0.15625,
         "v0": 0.2625,
@@ -25,24 +25,50 @@
     {
       "id": "back",
       "label": "Back",
-      "widthCm": 30.0,
-      "heightCm": 45.0,
+      "widthCm": 30,
+      "heightCm": 45,
       "uvRect": {
         "u0": 0.65625,
         "v0": 0.25,
         "u1": 0.84375,
         "v1": 0.8125
       }
+    },
+    {
+      "id": "sleeveL",
+      "label": "Left sleeve",
+      "widthCm": 4,
+      "heightCm": 9,
+      "angle": -10.7,
+      "uvRect": {
+        "u0": 0.42687,
+        "v0": 0.51875,
+        "u1": 0.45188,
+        "v1": 0.63125
+      }
+    },
+    {
+      "id": "sleeveR",
+      "label": "Right sleeve",
+      "widthCm": 4,
+      "heightCm": 9,
+      "angle": 10.7,
+      "uvRect": {
+        "u0": 0.04813,
+        "v0": 0.51875,
+        "u1": 0.07313,
+        "v1": 0.63125
+      }
     }
   ],
   "span": 0.8,
   "z0": -0.04,
   "size": [
-    0.5828,
-    0.7263,
-    0.0835
+    0.6968,
+    0.7226,
+    0.0548
   ],
-  "centerDrop": 0.4332,
+  "centerDrop": 0.4316,
   "simulated": true,
   "triangles": 44682
 }

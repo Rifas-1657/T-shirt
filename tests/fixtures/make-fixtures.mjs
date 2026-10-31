@@ -30,6 +30,14 @@ const photoFront = `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="
 const photoBack = `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="520">${backdrop}<path d="${tee}" fill="#1c1c1c"/></svg>`;
 await fs.writeFile(new URL('product-photo-front.png', dir), await sharp(Buffer.from(photoFront)).png().toBuffer());
 await fs.writeFile(new URL('product-photo-back.png', dir), await sharp(Buffer.from(photoBack)).png().toBuffer());
+// perfume catalogue shots: a maroon flacon with a gold cap, front and three-quarter, on a light backdrop
+const flacon = (skew) => `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3f0eb"/><stop offset="1" stop-color="#e3ded7"/></linearGradient></defs><rect width="600" height="800" fill="url(#b)"/><g transform="translate(300 0) skewY(${skew}) translate(-300 0)"><rect x="240" y="170" width="120" height="70" fill="#c9a45c"/><rect x="190" y="240" width="220" height="400" rx="26" fill="#8a1538"/><rect x="235" y="330" width="130" height="70" fill="#f4e9d8"/></g></svg>`;
+await fs.writeFile(new URL('perfume-front.jpg', dir), await sharp(Buffer.from(flacon(0))).jpeg({ quality: 90 }).toBuffer());
+await fs.writeFile(new URL('perfume-angle.jpg', dir), await sharp(Buffer.from(flacon(-6))).jpeg({ quality: 90 }).toBuffer());
+// a perfume on a busy background (needs the AI cut-out): a studio render placed on a parquet floor (CC0)
+const floor = await sharp('public/textures/herringbone_parquet_Diffuse.jpg').resize(700, 900).modulate({ brightness: 0.9 }).toBuffer();
+const bottle = await sharp('public/perfume-shots/MDP-QASR-OUD/front.webp').resize({ height: 560 }).png().toBuffer();
+await fs.writeFile(new URL('perfume-busy.jpg', dir), await sharp(floor).composite([{ input: bottle, gravity: 'center' }]).jpeg({ quality: 88 }).toBuffer());
 await fs.writeFile(new URL('huge-dimensions.png', dir), await sharp({ create: { width: 7000, height: 40, channels: 3, background: '#fff' } }).png().toBuffer());
 await fs.writeFile(new URL('evil.svg', dir), '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" onload="alert(1)"><script>alert(2)</script><circle cx="50" cy="50" r="40" fill="#9c4a2e"/><foreignObject><iframe src="https://example.com"/></foreignObject></svg>');
 console.log('fixtures written');

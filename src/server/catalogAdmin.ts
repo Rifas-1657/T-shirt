@@ -6,12 +6,15 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { isValidUvRect } from '@/lib/printZones';
 import { validateLayer } from '@/lib/designSchema';
-import { BODY_GEOMETRY, CATEGORY_INFO, classifyGarment, isGarmentCategory, TEMPLATES, templateModelConfig } from '@/lib/garments';
+import { BODY_GEOMETRY, CATEGORY_INFO, classifyProduct, isGarmentCategory, TEMPLATES, templateModelConfig } from '@/lib/garments';
+import { DEFAULT_PERFUME, liquidName, perfumeModelConfig, validatePerfumeSpec } from '@/lib/perfume';
 import { colorName } from './garmentPhoto';
 import { zoneAspect } from '@/lib/printZones';
-import type { GarmentCategory, ImageLayer, Layer, ModelConfig, PrintZone, Product, ProductColor, ProductVersion, ValidationIssue, ZoneId } from '@/lib/types';
+import type { GarmentCategory, ImageLayer, Layer, ModelConfig, PhotoView, ProductPhoto, PrintZone, Product, ProductColor, ProductVersion, ValidationIssue, ZoneId } from '@/lib/types';
 import { buildDerivative, checkPrintProfile, inspectGlb, suggestTransform } from './glbValidate';
-import { atomicWrite, mutateProducts, newId, PATHS, safeJoin } from './storage';
+import { aiCutout, aiCutoutAvailable, enqueueCutout } from './aiCutout';
+import { readUpload, storeUpload } from './files';
+import { atomicWrite, mutateProducts, newId, PATHS, readProducts, safeJoin } from './storage';
 
 export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -35,13 +38,20 @@ export interface ProductInput {
   sizes?: unknown;
   colors?: unknown;
   stock?: unknown;
+  /** One of the four garment categories, or 'perfume'. */
   garment?: unknown;
+  perfume?: unknown;
 }
 
 export function validateProductInput(input: ProductInput, existing: Product[], selfId?: string, partial = false) {
   const errors: string[] = [];
   const out: Partial<Product> = {};
-  const has = (k: keyof ProductInput) => input[k] !== undefined || !partial;
+  const self = existing.find((p) => p.id === selfId);
+  // which department the product ends up in decides which fields are required
+  const kindAfter =
+    input.garment === 'perfume' ? 'perfume' : isGarmentCategory(input.garment) ? 'apparel' : input.garment === undefined && partial ? (self?.kind ?? 'apparel') : classifyProduct(input.title as string, input.description as string) === 'perfume' ? 'perfume' : 'apparel';
+  const isPerfume = kindAfter === 'perfume';
+  const has = (k: keyof ProductInput) => input[k] !== undefined || (!partial && !(isPerfume && (k === 'sizes' || k === 'colors')));
   if (has('title')) {
     if (typeof input.title !== 'string' || input.title.trim().length < 2 || input.title.length > 80) errors.push('Title must be 2-80 characters.');
     else out.title = input.title.trim();
@@ -55,7 +65,8 @@ export function validateProductInput(input: ProductInput, existing: Product[], s
     if (typeof input.description !== 'string' || input.description.length > 600) errors.push('Description must be at most 600 characters.');
     else out.description = input.description.trim();
   }
-  if (has('category')) {
+  // display category: optional free text, otherwise derived from the chosen category (see below)
+  if (input.category !== undefined && input.category !== null && input.category !== '') {
     if (typeof input.category !== 'string' || input.category.length < 2 || input.category.length > 40) errors.push('Category must be 2-40 characters.');
     else out.category = input.category.trim();
   }
@@ -86,13 +97,42 @@ export function validateProductInput(input: ProductInput, existing: Product[], s
     else out.stock = st as Record<string, number>;
   }
   if (input.garment !== undefined && input.garment !== null && input.garment !== '') {
-    if (!isGarmentCategory(input.garment)) errors.push('Garment category must be half-sleeve, full-sleeve, oversized or hoodie.');
-    else out.garment = input.garment;
+    if (input.garment === 'perfume') out.kind = 'perfume';
+    else if (!isGarmentCategory(input.garment)) errors.push('Category must be half-sleeve, full-sleeve, oversized, hoodie or perfume.');
+    else {
+      out.garment = input.garment;
+      out.kind = 'apparel';
+    }
   } else if (!partial) {
     // automatic classification from the product text; the admin can override it at any time
-    const guess = classifyGarment(out.title, out.description, out.category);
-    if (guess) out.garment = guess;
-    else errors.push('Choose a garment category (the title/description did not identify one).');
+    const guess = classifyProduct(out.title, out.description, out.category);
+    if (guess === 'perfume') out.kind = 'perfume';
+    else if (guess) {
+      out.garment = guess;
+      out.kind = 'apparel';
+    } else errors.push('Choose a category (the title/description did not identify one).');
+  }
+  if (isPerfume) {
+    if (input.perfume !== undefined || !self?.perfume) {
+      const { spec, errors: pe } = validatePerfumeSpec(input.perfume ?? DEFAULT_PERFUME);
+      errors.push(...pe);
+      out.perfume = spec;
+    }
+    // a perfume has one "colour" (its juice) and no garment sizes
+    const liquid = out.perfume?.liquid ?? self?.perfume?.liquid ?? DEFAULT_PERFUME.liquid;
+    out.colors = [{ name: liquidName(liquid), hex: liquid }];
+    if (!partial || input.sizes !== undefined) out.sizes = [];
+    out.garment ??= self?.garment ?? 'half-sleeve';
+  } else if (partial && input.garment !== undefined && self?.kind === 'perfume') {
+    // perfume → apparel: needs garment sizes and colours again
+    if (!out.sizes?.length) out.sizes = ['S', 'M', 'L', 'XL'];
+    if (!out.colors?.length || self.colors.length <= 1) out.colors = [{ name: 'Chalk', hex: '#ece8df' }];
+  }
+  // derived display category keeps the shop's labels consistent (perfumes are never "T-Shirts")
+  if (!out.category && (!partial || input.garment !== undefined)) {
+    const k = out.kind ?? self?.kind;
+    const g = out.garment ?? self?.garment;
+    if (!partial || k !== self?.kind || g !== self?.garment) out.category = k === 'perfume' ? 'Perfumes' : g === 'hoodie' ? 'Hoodies' : 'T-Shirts';
   }
   if (errors.length) throw new AdminError(422, errors);
   return out;
@@ -108,11 +148,13 @@ export async function createProduct(input: ProductInput): Promise<Product> {
       title: fields.title!,
       description: fields.description ?? '',
       category: fields.category!,
-      garment: fields.garment!,
+      kind: fields.kind ?? 'apparel',
+      perfume: fields.perfume,
+      garment: fields.garment ?? 'half-sleeve',
       price: fields.price!,
       currency: fields.currency ?? 'USD',
       active: fields.active ?? false,
-      sizes: fields.sizes!,
+      sizes: fields.sizes ?? [],
       colors: fields.colors!,
       stock: fields.stock,
       liveVersionId: null,
@@ -442,6 +484,112 @@ export async function updateTemplateArtwork(productId: string, versionId: string
     p.updatedAt = new Date().toISOString();
     return v;
   });
+}
+
+/** Perfume: a presentation version on the chosen bottle template (never customisable). */
+export async function addPerfumeVersion(productId: string): Promise<ProductVersion> {
+  return mutateProducts((products) => {
+    const p = find(products, productId);
+    if (p.kind !== 'perfume' || !p.perfume) throw new AdminError(409, ['This product is not a perfume.']);
+    const version: ProductVersion = {
+      id: newId('v_'),
+      createdAt: new Date().toISOString(),
+      status: 'validated',
+      pathway: 'perfume',
+      modelConfig: perfumeModelConfig(p.perfume.bottle),
+      issues: [{ level: 'info', code: 'perfume', message: 'Presented in the perfume salon on the ' + p.perfume.bottle + ' bottle. Perfumes have no customisation.' }],
+    };
+    p.versions.push(version);
+    p.updatedAt = new Date().toISOString();
+    return version;
+  });
+}
+
+export const MAX_PHOTOS = 8;
+const VIEW_ORDER: PhotoView[] = ['front', 'angle', 'side', 'back', 'detail'];
+
+/** Adds validated photos (already stored) to a product, guessing the view from the upload order. */
+export async function addProductPhotos(productId: string, photos: Omit<ProductPhoto, 'id' | 'view'>[], views: (PhotoView | undefined)[]): Promise<ProductPhoto[]> {
+  return mutateProducts((products) => {
+    const p = find(products, productId);
+    const list = p.photos ?? [];
+    if (list.length + photos.length > MAX_PHOTOS) throw new AdminError(422, [`At most ${MAX_PHOTOS} photos per product (it has ${list.length}).`]);
+    photos.forEach((ph, i) => {
+      const used = new Set(list.map((x) => x.view));
+      const view = views[i] ?? VIEW_ORDER.find((v) => v !== 'detail' && !used.has(v)) ?? 'detail';
+      list.push({ ...ph, id: newId('ph_'), view });
+    });
+    p.photos = list;
+    p.updatedAt = new Date().toISOString();
+    return list;
+  });
+}
+
+export async function updateProductPhoto(productId: string, photoId: string, input: { view?: unknown; useCutout?: unknown; first?: unknown }): Promise<ProductPhoto[]> {
+  return mutateProducts((products) => {
+    const p = find(products, productId);
+    const list = p.photos ?? [];
+    const i = list.findIndex((x) => x.id === photoId);
+    if (i < 0) throw new AdminError(404, ['Photo not found.']);
+    if (input.view !== undefined) {
+      if (!VIEW_ORDER.includes(input.view as PhotoView)) throw new AdminError(422, ['View must be front, angle, side, back or detail.']);
+      list[i].view = input.view as PhotoView;
+    }
+    if (input.useCutout !== undefined) list[i].useCutout = Boolean(input.useCutout) && !!list[i].cutoutUrl;
+    if (input.first) list.unshift(...list.splice(i, 1));
+    p.updatedAt = new Date().toISOString();
+    return list;
+  });
+}
+
+export async function deleteProductPhoto(productId: string, photoId: string): Promise<ProductPhoto[]> {
+  return mutateProducts((products) => {
+    const p = find(products, productId);
+    const before = p.photos?.length ?? 0;
+    p.photos = (p.photos ?? []).filter((x) => x.id !== photoId);
+    if (p.photos.length === before) throw new AdminError(404, ['Photo not found.']);
+    p.updatedAt = new Date().toISOString();
+    return p.photos;
+  });
+}
+
+/** Queues the AI cut-out for a photo on a busy background; the product updates itself when it is done. */
+export async function queuePhotoCutout(productId: string, photoId: string) {
+  if (!aiCutoutAvailable()) return false;
+  await mutateProducts((products) => {
+    const ph = find(products, productId).photos?.find((x) => x.id === photoId);
+    if (ph) ph.cutout = 'working';
+  });
+  enqueueCutout(`${productId}/${photoId}`, async () => {
+    const products = await readProducts();
+    const ph = products.find((p) => p.id === productId)?.photos?.find((x) => x.id === photoId);
+    const upload = ph && (await readUpload(ph.url.replace('/api/uploads/', '')));
+    if (!ph || !upload) return; // deleted meanwhile
+    const cut = await aiCutout(upload.data).catch((e: Error) => ({ ok: false as const, reason: e.message, png: undefined, width: undefined, height: undefined, accentColor: undefined }));
+    const cid = cut.ok && cut.png ? await storeUpload(cut.png, { contentType: 'image/png', width: cut.width, height: cut.height, owner: 'admin' }) : null;
+    await mutateProducts((all) => {
+      const p = all.find((x) => x.id === productId);
+      const i = p?.photos?.findIndex((x) => x.id === photoId) ?? -1;
+      if (!p?.photos || i < 0) return;
+      const photo = p.photos[i];
+      if (cid) {
+        Object.assign(photo, { cutoutUrl: `/api/uploads/${cid}`, useCutout: true, width: cut.width!, height: cut.height! });
+        delete photo.cutout;
+        // the first photo of a perfume whose juice colour was never chosen sets it
+        if (i === 0 && p.perfume && cut.accentColor && p.perfume.liquid === DEFAULT_PERFUME.liquid) p.perfume.liquid = cut.accentColor;
+      } else photo.cutout = 'failed';
+      p.updatedAt = new Date().toISOString();
+    });
+  });
+  return true;
+}
+
+/** After a server restart: re-queue cut-outs that were still running. */
+let resumed = false;
+export async function resumePhotoCutouts() {
+  if (resumed || !aiCutoutAvailable()) return;
+  resumed = true;
+  for (const p of await readProducts()) for (const ph of p.photos ?? []) if (ph.cutout === 'working') await queuePhotoCutout(p.id, ph.id);
 }
 
 /** Update a version's print/display profile and re-run the profile checks against the model. */

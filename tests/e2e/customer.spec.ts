@@ -12,7 +12,10 @@ test.describe('customer showroom', () => {
     // every published product hangs on the rack of its garment category
     const { products } = await (await page.request.get('/api/products')).json();
     const racks = await page.evaluate(() => (window as unknown as { __atelier: { racks: () => Record<string, { id: string }[]> } }).__atelier.racks());
-    for (const p of products as { id: string; garment: string }[]) expect(racks[p.garment].map((g) => g.id)).toContain(p.id);
+    // every apparel product hangs on the rack of its category (perfumes live in the salon instead)
+    for (const p of (products as { id: string; garment: string; kind: string }[]).filter((x) => x.kind !== 'perfume')) expect(racks[p.garment].map((g) => g.id)).toContain(p.id);
+    const perfumeIds = (products as { id: string; kind: string }[]).filter((x) => x.kind === 'perfume').map((x) => x.id);
+    for (const list of Object.values(racks)) for (const g of list) expect(perfumeIds).not.toContain(g.id);
     for (const cat of ['half-sleeve', 'full-sleeve', 'oversized', 'hoodie']) expect(racks[cat]?.length ?? 0).toBeGreaterThanOrEqual(4);
 
     // pointer hover over the middle of the rail swings a garment round and updates the caption
@@ -142,6 +145,27 @@ test.describe('customer showroom', () => {
     expect(saved.design.schemaVersion).toBe(1);
     expect(saved.design.zones.front.find((l: { type: string }) => l.type === 'image').src).toMatch(/^\/api\/uploads\//);
     expect(saved.design.productVersionId).toBeTruthy();
+  });
+
+  test('sleeves: print on the left sleeve; the garment turns to it and the saved design keeps it', async ({ page }) => {
+    await page.goto('/');
+    await waitForScene(page);
+    await page.getByTestId('product-ATL-CRW-CHK').click();
+    await page.getByTestId('customize-btn').click();
+    await expect(page.getByTestId('zone-sleeveL')).toBeVisible();
+    await expect(page.getByTestId('zone-sleeveR')).toBeVisible();
+    await page.getByTestId('zone-sleeveL').click();
+    await page.getByTestId('add-text').click();
+    await page.getByTestId('text-input').fill('AE');
+    await expect(page.getByTestId('layer-list').locator('li')).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: 'docs/screenshots/e2e/customize-sleeve.png' });
+    await page.getByTestId('save-design').click();
+    const href = await page.getByTestId('saved-link').locator('a').getAttribute('href');
+    const id = new URL(href!, 'http://x').searchParams.get('design');
+    const saved = await (await page.request.get(`/api/designs/${id}`)).json();
+    expect(saved.design.zones.sleeveL.map((l: { text: string }) => l.text)).toEqual(['AE']);
+    expect(saved.design.zones.front).toEqual([]);
   });
 
   test('server rejects tampered designs', async ({ request }) => {

@@ -84,6 +84,14 @@ const RULES: [GarmentCategory, RegExp][] = [
   ['half-sleeve', /\b(half[- ]?sleeves?|short[- ]?sleeved?|s\/s|tee|t-?shirt|crew)\b/i],
 ];
 
+const PERFUME_RE = /\b(perfumes?|parfums?|eau de|edp|edt|extrait|fragrances?|cologne|attar|ittar|bakhoor|oud oil|musk oil)\b/i;
+
+/** Like classifyGarment, but also recognises perfumes ("Oud Royale Eau de Parfum"). */
+export function classifyProduct(title?: string, ...rest: (string | undefined)[]): GarmentCategory | 'perfume' | null {
+  for (const text of [title ?? '', rest.filter(Boolean).join(' ')]) if (PERFUME_RE.test(text)) return 'perfume';
+  return classifyGarment(title, ...rest);
+}
+
 /**
  * Suggests a category from product text. The title decides when it names a garment type; the
  * description/category are only consulted when it does not (so "Crew Tee … slightly boxy" stays a

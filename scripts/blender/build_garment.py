@@ -50,7 +50,7 @@ CATS = {
         cuffs=[((0.338, 0.560), (0.276, 0.490))], cuff_rib=False, hem_rib=0.0,
         armhole=((0.215, 0.682), (0.262, 0.500)),
         zones=dict(front=(-0.15, 0.15, 0.17, 0.57), back=(-0.15, 0.15, 0.16, 0.61)),
-        collar_r=0.0055, fabric=dict(rough=0.9, sheen=0.12, normal=0.55), hood=False, pocket=None,
+        collar_r=0.0055, fabric=dict(rough=0.9, sheen=0.12, normal=0.35), hood=False, pocket=None,
     ),
     "full-sleeve": dict(
         label="Full-sleeve T-shirt",
@@ -64,7 +64,7 @@ CATS = {
         cuffs=[((0.374, 0.092), (0.298, 0.078))], cuff_rib=0.055, hem_rib=0.0,
         armhole=((0.215, 0.682), (0.268, 0.488)),
         zones=dict(front=(-0.15, 0.15, 0.17, 0.57), back=(-0.15, 0.15, 0.16, 0.61)),
-        collar_r=0.0055, fabric=dict(rough=0.9, sheen=0.12, normal=0.55), hood=False, pocket=None,
+        collar_r=0.0055, fabric=dict(rough=0.9, sheen=0.12, normal=0.35), hood=False, pocket=None,
     ),
     "oversized": dict(
         label="Oversized T-shirt",
@@ -77,7 +77,7 @@ CATS = {
         cuffs=[((0.440, 0.600), (0.322, 0.476))], cuff_rib=False, hem_rib=0.0,
         armhole=((0.300, 0.724), (0.306, 0.470)),
         zones=dict(front=(-0.17, 0.17, 0.20, 0.64), back=(-0.17, 0.17, 0.18, 0.68)),
-        collar_r=0.0075, fabric=dict(rough=0.92, sheen=0.16, normal=0.6), hood=False, pocket=None,
+        collar_r=0.0075, fabric=dict(rough=0.92, sheen=0.16, normal=0.38), hood=False, pocket=None,
     ),
     "hoodie": dict(
         label="Hoodie",
@@ -91,7 +91,7 @@ CATS = {
         cuffs=[((0.374, 0.075), (0.306, 0.066))], cuff_rib=0.065, hem_rib=0.07,
         armhole=((0.240, 0.690), (0.290, 0.480)),
         zones=dict(front=(-0.13, 0.13, 0.36, 0.60), back=(-0.16, 0.16, 0.10, 0.42)),
-        collar_r=0.0, fabric=dict(rough=0.95, sheen=0.3, normal=0.7), hood=True,
+        collar_r=0.0, fabric=dict(rough=0.95, sheen=0.3, normal=0.45), hood=True,
         pocket=[(-0.16, 0.110), (0.16, 0.110), (0.135, 0.300), (-0.135, 0.300)],
     ),
 }
@@ -243,6 +243,10 @@ def hanger_z(x):
     return (NK[1] - 0.012) * (1 - t) + (SH[1] - 0.026) * t
 
 # ------------------------------------------------------------------ cloth simulation
+# seam vertices (where front and back panels meet) get extra smoothing after the drape
+seam_vg = body.vertex_groups.new(name="seam")
+seam_vg.add([v.index for v in me.vertices if abs(v.co.y) < 1e-6], 1.0, "REPLACE")
+
 if SIM:
     vg = body.vertex_groups.new(name="pin")
     pin = []
@@ -260,19 +264,20 @@ if SIM:
     s.compression_stiffness = 40
     s.shear_stiffness = 12
     # stiffer fabric = clean, retail-pressed drape (few large folds) instead of crumpled cloth
-    s.bending_stiffness = 2.5 if CAT != "hoodie" else 8.0
+    # pressed retail look: stiff enough for a few soft folds, never crinkles
+    s.bending_stiffness = 10.0 if CAT != "hoodie" else 22.0
     s.air_damping = 2.0
     s.vertex_group_mass = "pin"
     s.pin_stiffness = 1.0
     s.use_pressure = True
-    s.uniform_pressure_force = 0.3 if CAT != "hoodie" else 0.45
+    s.uniform_pressure_force = 0.08 if CAT != "hoodie" else 0.15  # just enough to keep the body open; more makes lumps
     s.pressure_factor = 1.0
     cs = mod.collision_settings
     cs.use_collision = False
     cs.use_self_collision = True
     cs.self_distance_min = 0.0025
     cs.collision_quality = 2
-    frames = 30
+    frames = 14  # a short settle: gentle gravity drape, no crumpling
     mod.point_cache.frame_start = 1
     mod.point_cache.frame_end = frames
     scn.frame_start, scn.frame_end = 1, frames
@@ -284,12 +289,19 @@ if SIM:
     with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
         bpy.ops.object.modifier_apply(modifier=mod.name)
     sm = body.modifiers.new("Smooth", "CORRECTIVE_SMOOTH")
-    sm.factor, sm.iterations, sm.smooth_type = 0.7, 10, "LENGTH_WEIGHTED"
+    sm.factor, sm.iterations, sm.smooth_type = 0.8, 14, "LENGTH_WEIGHTED"
     with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
         bpy.ops.object.modifier_apply(modifier=sm.name)
-    body.vertex_groups.clear()
     log("sim applied")
 
+# crisp, straight seams and hems: smooth the seam line (removes the sawtooth of the triangle grid)
+ls = body.modifiers.new("SeamSmooth", "LAPLACIANSMOOTH")
+ls.vertex_group = "seam"
+ls.lambda_factor, ls.iterations, ls.use_volume_preserve = 0.6, 8, True
+activate(body)
+with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
+    bpy.ops.object.modifier_apply(modifier=ls.name)
+body.vertex_groups.clear()
 me = body.data
 bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
 
@@ -546,7 +558,7 @@ def make_detail_maps():
     # jersey/fleece grain: fine anisotropic noise (vertical wales)
     grain = value_noise(RES_W, RES_H, 220, 3) - 0.5
     wales = 0.5 + 0.5 * np.cos(2 * np.pi * X / 0.0014)
-    H += 0.18 * grain + 0.06 * wales
+    H += 0.05 * grain + 0.03 * wales  # fine, even knit: reads as clean fabric, not crumpled
     def groove(mask_d, centre, width, depth):
         return -depth * np.exp(-((mask_d - centre) ** 2) / (2 * width ** 2))
     def stitches(mask_d, t_along, length, centre, period=0.003):
@@ -610,7 +622,7 @@ def make_detail_maps():
     hw, hh = RES_W // 2, RES_H // 2
     hn = value_noise(hw, hh, 180, 3)
     slub = value_noise(hw, hh, 60, 2)
-    shade = 0.93 + 0.05 * (hn - 0.5) + 0.03 * np.clip((slub - 0.62) * 4, 0, 1)
+    shade = 0.95 + 0.012 * (hn - 0.5) + 0.004 * (slub - 0.5)  # near-uniform: no blotches
     base = np.repeat(np.clip(shade, 0, 1)[..., None], 3, -1).astype(np.float32)
     basecol = save_img("Heather", base, False)
     return normal, basecol
@@ -674,7 +686,7 @@ for ob in scn.objects:
 # ------------------------------------------------------------------ ambient occlusion bake (body)
 log("baking AO")
 scn.render.engine = "CYCLES"
-scn.cycles.samples = 48
+scn.cycles.samples = 256
 scn.cycles.device = "CPU"
 ao_img = bpy.data.images.new("AO", 1024, 512, alpha=False)
 ao_img.colorspace_settings.name = "Non-Color"
@@ -691,6 +703,14 @@ bpy.ops.object.bake(type="AO")
 for ob in (hood, pocket):
     if ob:
         ob.hide_render = False
+# soften residual bake noise (separable box blur, 3 passes) so folds read as smooth shading
+_a = np.empty(ao_img.size[0] * ao_img.size[1] * 4, np.float32); ao_img.pixels.foreach_get(_a)
+_a = _a.reshape(ao_img.size[1], ao_img.size[0], 4)
+for _ in range(3):
+    for ax in (0, 1):
+        _a[..., :3] = (np.roll(_a[..., :3], 1, ax) + _a[..., :3] + np.roll(_a[..., :3], -1, ax)) / 3
+_a[..., :3] = 0.35 + 0.65 * _a[..., :3]  # keep occlusion gentle: depth in folds, never dirty patches
+ao_img.pixels.foreach_set(_a.ravel())
 ao_img.pack()
 # expose AO to the glTF exporter through the "glTF Material Output" group (occlusion socket)
 grp = bpy.data.node_groups.get("glTF Material Output") or bpy.data.node_groups.new("glTF Material Output", "ShaderNodeTree")
@@ -711,7 +731,7 @@ for ob in list(scn.objects):
     if ob.type == "MESH":
         ob.data.transform(__import__("mathutils").Matrix.Translation(-HOOK_C))
         ob.parent = root
-root["template"] = f"{CAT}-v2"
+root["template"] = f"{CAT}-v3"
 
 bpy.ops.export_scene.gltf(filepath=OUT_GLB, export_format="GLB", export_yup=True, export_apply=True,
                           export_texcoords=True, export_normals=True, export_extras=True, export_image_format="AUTO")
@@ -732,7 +752,7 @@ bb = [Vector(c) for ob in (body,) for c in ob.bound_box]
 size = Vector((max(v.x for v in bb) - min(v.x for v in bb), max(v.y for v in bb) - min(v.y for v in bb), max(v.z for v in bb) - min(v.z for v in bb)))
 centre = sum(bb, Vector()) / len(bb)
 meta = dict(
-    id=CAT, label=C["label"], version=2,
+    id=CAT, label=C["label"], version=3,
     printableMeshes=["Shirt"],
     colorableMaterials=["Fabric", "Rib"],
     printZones=[zone("front", C["zones"]["front"], "Front"), zone("back", C["zones"]["back"], "Back")],

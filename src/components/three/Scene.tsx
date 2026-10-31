@@ -1,5 +1,5 @@
 'use client';
-import { Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei';
+import { Environment, OrbitControls, useGLTF, useTexture } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -93,68 +93,6 @@ function canvasTexture(w: number, h: number, draw: (ctx: CanvasRenderingContext2
   return t;
 }
 
-/** Pale oak boards with grain variation (seeded, so every load looks the same). */
-function useOakFloor() {
-  const tex = useMemo(() => {
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    return canvasTexture(1024, 1024, (ctx) => {
-      const boards = 8;
-      const bw = 1024 / boards;
-      for (let i = 0; i < boards; i++) {
-        let y = -rnd() * 600;
-        while (y < 1024) {
-          const len = 380 + rnd() * 420;
-          const tone = 200 + rnd() * 22;
-          ctx.fillStyle = `rgb(${tone + 14},${tone},${tone - 22})`;
-          ctx.fillRect(i * bw, y, bw, len);
-          ctx.globalAlpha = 0.07;
-          for (let g = 0; g < 26; g++) {
-            ctx.strokeStyle = rnd() > 0.5 ? '#6b5136' : '#fff4e2';
-            ctx.lineWidth = 0.6 + rnd() * 1.4;
-            ctx.beginPath();
-            const gx = i * bw + rnd() * bw;
-            ctx.moveTo(gx, y);
-            ctx.bezierCurveTo(gx + (rnd() - 0.5) * 10, y + len * 0.33, gx + (rnd() - 0.5) * 10, y + len * 0.66, gx + (rnd() - 0.5) * 6, y + len);
-            ctx.stroke();
-          }
-          ctx.globalAlpha = 0.35;
-          ctx.fillStyle = '#8a735a';
-          ctx.fillRect(i * bw, y + len - 1.5, bw, 1.5);
-          ctx.fillRect(i * bw, y, 1.2, len);
-          ctx.globalAlpha = 1;
-          y += len;
-        }
-      }
-    });
-  }, []);
-  useEffect(() => () => tex.dispose(), [tex]);
-  tex.repeat.set(5, 5);
-  return tex;
-}
-
-function usePlaster() {
-  const tex = useMemo(() => {
-    let seed = 3;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    return canvasTexture(512, 512, (ctx) => {
-      ctx.fillStyle = WALL;
-      ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 2400; i++) {
-        const v = rnd() > 0.5 ? 255 : 200;
-        ctx.fillStyle = `rgba(${v},${v - 6},${v - 14},0.035)`;
-        const r = 4 + rnd() * 28;
-        ctx.beginPath();
-        ctx.arc(rnd() * 512, rnd() * 512, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    });
-  }, []);
-  useEffect(() => () => tex.dispose(), [tex]);
-  tex.repeat.set(6, 2);
-  return tex;
-}
-
 /** Engraved-looking wall sign for a rack, drawn with the site's display font. */
 function RackSign({ category, x }: { category: GarmentCategory; x: number }) {
   const tex = useMemo(() => {
@@ -174,7 +112,7 @@ function RackSign({ category, x }: { category: GarmentCategory; x: number }) {
   }, [category]);
   useEffect(() => () => tex.dispose(), [tex]);
   return (
-    <mesh position={[x, 2.22, WALL_Z + 0.01]}>
+    <mesh position={[x, 2.12, WALL_Z + 0.01]}>
       <planeGeometry args={[1.6, 0.4]} />
       <meshBasicMaterial map={tex} transparent toneMapped={false} />
     </mesh>
@@ -227,36 +165,106 @@ function Rack({ category }: { category: GarmentCategory }) {
   );
 }
 
+/** Real CC0 PBR surfaces from Poly Haven (see docs/ASSET_CREDITS.md). */
+function usePbr(prefix: string, repeat: [number, number]) {
+  const maps = useTexture({ map: `/textures/${prefix}_Diffuse.jpg`, normalMap: `/textures/${prefix}_nor_gl.jpg`, roughnessMap: `/textures/${prefix}_Rough.jpg` });
+  useMemo(() => {
+    for (const [k, t] of Object.entries(maps)) {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(repeat[0], repeat[1]);
+      t.anisotropy = 8;
+      t.colorSpace = k === 'map' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      t.needsUpdate = true;
+    }
+  }, [maps, repeat]);
+  return maps;
+}
+
+/** A Poly Haven prop (CC0), cloned so it can be placed more than once. */
+function Prop({ name, position, rotation = 0, scale = 1 }: { name: string; position: [number, number, number]; rotation?: number; scale?: number }) {
+  const { scene } = useGLTF(`/models/props/${name}.glb`);
+  const root = useMemo(() => {
+    const r = scene.clone(true);
+    r.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.castShadow = true;
+        m.receiveShadow = true;
+        m.raycast = () => undefined; // decor never steals clicks from garments
+      }
+    });
+    return r;
+  }, [scene]);
+  return <primitive object={root} position={position} rotation={[0, rotation, 0]} scale={scale} />;
+}
+
+/** Raised moulding frame on the wall (boutique panelling). */
+function WallPanel({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  const t = 0.022;
+  const mat = <meshStandardMaterial color="#ebe3d7" roughness={0.75} />;
+  return (
+    <group position={[x, y, WALL_Z + 0.012]}>
+      <mesh position={[0, h / 2, 0]} castShadow receiveShadow><boxGeometry args={[w, t, 0.02]} />{mat}</mesh>
+      <mesh position={[0, -h / 2, 0]} castShadow receiveShadow><boxGeometry args={[w, t, 0.02]} />{mat}</mesh>
+      <mesh position={[-w / 2, 0, 0]} castShadow receiveShadow><boxGeometry args={[t, h, 0.02]} />{mat}</mesh>
+      <mesh position={[w / 2, 0, 0]} castShadow receiveShadow><boxGeometry args={[t, h, 0.02]} />{mat}</mesh>
+    </group>
+  );
+}
+
+const PARQUET_REPEAT: [number, number] = [22, 10];
+const PLASTER_REPEAT: [number, number] = [10, 2];
+
 function Room({ mobile }: { mobile: boolean }) {
-  const floor = useOakFloor();
-  const plaster = usePlaster();
+  const floor = usePbr('herringbone_parquet', PARQUET_REPEAT);
+  const plaster = usePbr('grey_plaster_03', PLASTER_REPEAT); // relief only
+  const gap = (RACK_ORDER.length - 1) / 2;
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[30, 14]} />
-        <meshStandardMaterial map={floor} roughness={0.62} metalness={0} />
+        <meshStandardMaterial {...floor} color="#d9c3a5" roughness={0.75} envMapIntensity={0.7} />
       </mesh>
       <mesh position={[0, 3, WALL_Z]} receiveShadow>
         <planeGeometry args={[30, 6]} />
-        <meshStandardMaterial map={plaster} roughness={0.95} emissive={WALL} emissiveIntensity={0.28} />
+        {/* clean ivory plaster: only the surface relief of the scan, not its stains */}
+        <meshStandardMaterial normalMap={plaster.normalMap} normalScale={new THREE.Vector2(0.35, 0.35)} color="#efe8dd" roughness={0.92} emissive={WALL} emissiveIntensity={0.2} />
       </mesh>
-      {/* recessed bays behind each rack with a warm wall-wash */}
       {RACK_ORDER.map((c) => (
         <group key={c}>
-          <mesh position={[rackX(c), 1.55, WALL_Z + 0.004]} receiveShadow>
-            <planeGeometry args={[2.6, 3.1]} />
-            <meshStandardMaterial color="#f3efe8" roughness={0.95} emissive="#f3efe8" emissiveIntensity={0.22} />
-          </mesh>
+          <WallPanel x={rackX(c)} y={1.45} w={2.5} h={2.2} />
           <Rack category={c} />
           <RackSign category={c} x={rackX(c)} />
-          {!mobile && <spotLight position={[rackX(c), 3.6, 1.6]} target-position={[rackX(c), 1.3, 0]} angle={0.55} penumbra={0.9} intensity={6} distance={8} color="#fff0de" />}
+          {!mobile && <spotLight position={[rackX(c), 3.6, 1.6]} target-position={[rackX(c), 1.3, 0]} angle={0.55} penumbra={0.9} intensity={5} distance={8} color="#fff0de" />}
         </group>
       ))}
-      {/* skirting */}
-      <mesh position={[0, 0.05, WALL_Z + 0.01]}>
-        <boxGeometry args={[30, 0.1, 0.02]} />
-        <meshStandardMaterial color="#e9e3d9" roughness={0.6} emissive="#e9e3d9" emissiveIntensity={0.2} />
+      {/* skirting and cornice */}
+      <mesh position={[0, 0.06, WALL_Z + 0.015]} receiveShadow>
+        <boxGeometry args={[30, 0.12, 0.03]} />
+        <meshStandardMaterial color="#eee7dc" roughness={0.6} />
       </mesh>
+      <mesh position={[0, 3.05, WALL_Z + 0.02]}>
+        <boxGeometry args={[30, 0.08, 0.04]} />
+        <meshStandardMaterial color="#eee7dc" roughness={0.6} />
+      </mesh>
+      {/* store furniture: dressing mirror, plants between racks, lounge corners at both ends */}
+      <Suspense fallback={null}>
+        <Prop name="ornate_mirror_01" position={[0, 1.42, WALL_Z + 0.03]} scale={2.1} />
+        {[-1, 1].map((sd) => (
+          <Prop key={sd} name={sd < 0 ? 'potted_plant_02' : 'potted_plant_01'} position={[sd * RACK_GAP, 0, WALL_Z + 0.42]} rotation={sd * 0.6} scale={sd < 0 ? 1.15 : 1} />
+        ))}
+        {!mobile && (
+          <>
+            <Prop name="mid_century_lounge_chair" position={[-(gap * RACK_GAP + 2.75), 0, -0.6]} rotation={0.55} />
+            <Prop name="modern_coffee_table_01" position={[-(gap * RACK_GAP + 2.05), 0, 0.15]} rotation={Math.PI / 2} />
+            <Prop name="ceramic_vase_02" position={[-(gap * RACK_GAP + 2.05), 0.39, 0.15]} />
+            <Prop name="mid_century_lounge_chair" position={[gap * RACK_GAP + 2.75, 0, -0.6]} rotation={-0.55} />
+            <Prop name="modern_coffee_table_01" position={[gap * RACK_GAP + 2.05, 0, 0.15]} rotation={Math.PI / 2} />
+            <Prop name="potted_plant_01" position={[gap * RACK_GAP + 2.9, 0, WALL_Z + 0.45]} rotation={2} />
+            <Prop name="potted_plant_02" position={[-(gap * RACK_GAP + 2.9), 0, WALL_Z + 0.45]} rotation={-1} scale={1.15} />
+          </>
+        )}
+      </Suspense>
     </group>
   );
 }
@@ -274,7 +282,7 @@ function Lights({ mobile }: { mobile: boolean }) {
   });
   return (
     <>
-      <hemisphereLight args={['#fff6ea', '#b5a28a', 0.75]} />
+      <hemisphereLight args={['#fff6ea', '#b5a28a', 0.5]} />
       <directionalLight
         ref={key}
         position={[2.2, 4.6, 3.4]}
@@ -293,12 +301,8 @@ function Lights({ mobile }: { mobile: boolean }) {
         shadow-radius={5}
       />
       <directionalLight position={[-3, 2.4, 2]} intensity={0.4} color="#e9eef5" />
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={2.2} color="#fff4e6" scale={[8, 3, 1]} position={[0, 5, 2]} rotation-x={Math.PI / 2} />
-        <Lightformer form="rect" intensity={1.2} color="#ffe7cc" scale={[3, 4, 1]} position={[4, 2, 1]} rotation-y={-Math.PI / 2} />
-        <Lightformer form="rect" intensity={0.6} color="#dfe6ee" scale={[3, 4, 1]} position={[-4, 2, 1]} rotation-y={Math.PI / 2} />
-        <Lightformer form="rect" intensity={0.5} color={WALL} scale={[14, 6, 1]} position={[0, 2, -5]} />
-      </Environment>
+      {/* real interior light from a CC0 Poly Haven HDRI: believable reflections on wood, brass and fabric */}
+      <Environment files="/hdri/brown_photostudio_02_1k.hdr" environmentIntensity={0.55} />
     </>
   );
 }
@@ -345,7 +349,8 @@ function RailItem({ product, index, rackIds }: { product: PublicProduct; index: 
       tz = DETAIL_Z;
       // back view turns the garment (like turning a shirt on its hanger) instead of sending the
       // camera behind it, where the racks would block the view
-      ry = st.side === 'back' ? Math.PI : 0;
+      // sleeves: turn about 45 degrees so that sleeve faces the customer (wearer's left is the viewer's right)
+      ry = st.side === 'back' ? Math.PI : st.side === 'sleeveL' ? -0.8 : st.side === 'sleeveR' ? 0.8 : 0;
     } else if (st.mode === 'collection' && st.hoveredId) {
       // the hovered garment swings to face the customer; its rack neighbours make room
       const hi = rackIds.indexOf(st.hoveredId);
@@ -425,6 +430,70 @@ function Veil() {
   );
 }
 
+/** Studio behind the garment while customising: a charcoal sweep lit by one soft spot, with the blurred
+ * shadows of leaves falling across it (a gobo), so the print is judged against a calm, dark ground. */
+function StudioBackdrop() {
+  const mesh = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshBasicMaterial>(null);
+  const reduced = useMemo(() => prefersReducedMotion(), []);
+  const tex = useMemo(() => {
+    const W = 1600;
+    const H = 800;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d')!;
+    // only the middle of the sweep is in view, so the spot's fall-off is tight around it
+    const g = ctx.createRadialGradient(W / 2, H * 0.5, 20, W / 2, H * 0.5, W * 0.26);
+    g.addColorStop(0, '#77787b');
+    g.addColorStop(0.55, '#3d3e41');
+    g.addColorStop(1, '#121315');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    // leaf shadows, drawn sharp on their own layer and laid on heavily blurred
+    const leaves = document.createElement('canvas');
+    leaves.width = W;
+    leaves.height = H;
+    const l = leaves.getContext('2d')!;
+    l.fillStyle = 'rgba(6,7,8,0.85)';
+    for (let i = 0; i < 520; i++) {
+      // leaves gather in clusters, like branches between the lamp and the wall; only the middle of
+      // the backdrop is ever in view, so that is where they fall
+      const cluster = i % 9;
+      const x = W * (0.3 + 0.4 * (Math.sin(cluster * 4.1) * 0.5 + 0.5)) + Math.sin(i * 12.9898) * 55;
+      const y = H * (0.22 + 0.56 * (Math.cos(cluster * 2.7) * 0.5 + 0.5)) + Math.sin(i * 78.233) * 40;
+      const len = 4 + ((i * 37) % 8);
+      l.save();
+      l.translate(x, y);
+      l.rotate(i * 2.4);
+      l.beginPath();
+      l.ellipse(0, 0, len, len * 0.38, 0, 0, Math.PI * 2);
+      l.fill();
+      l.restore();
+    }
+    ctx.filter = 'blur(3px)';
+    ctx.drawImage(leaves, 0, 0);
+    ctx.filter = 'none';
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  useEffect(() => () => tex.dispose(), [tex]);
+  useFrame((_, dt) => {
+    const m = mat.current;
+    if (!m || !mesh.current) return;
+    m.opacity = damp(m.opacity, useShowroom.getState().mode === 'customize' ? 1 : 0, reduced ? 1000 : 4, dt);
+    m.visible = m.opacity > 0.005;
+    mesh.current.position.x = activeRackX();
+  });
+  return (
+    <mesh ref={mesh} position={[0, 1.45, DETAIL_Z - 0.32]} renderOrder={2}>
+      <planeGeometry args={[9, 4.5]} />
+      <meshBasicMaterial ref={mat} map={tex} transparent opacity={0} depthWrite={false} toneMapped={false} />
+    </mesh>
+  );
+}
+
 // ---------------------------------------------------------------- camera
 function CameraRig({ products }: { products: PublicProduct[] }) {
   const controls = useRef<OrbitControlsImpl>(null);
@@ -433,8 +502,8 @@ function CameraRig({ products }: { products: PublicProduct[] }) {
   const nonce = useShowroom((s) => s.framingNonce);
   const animating = useRef(true);
   const reduced = useMemo(() => prefersReducedMotion(), []);
-  const target = useRef(new THREE.Vector3(rackX('half-sleeve'), 1.5, 0));
-  const desired = useRef(new THREE.Vector3(rackX('half-sleeve'), 1.58, 3.6));
+  const target = useRef(new THREE.Vector3(rackX('half-sleeve'), 1.28, 0));
+  const desired = useRef(new THREE.Vector3(rackX('half-sleeve'), 1.52, 4.35));
   const base = useRef(new THREE.Vector3());
 
   useEffect(() => {
@@ -447,18 +516,23 @@ function CameraRig({ products }: { products: PublicProduct[] }) {
         desired.current.set(0, 1.9, narrow ? 30 : 13.5);
       } else {
         const x = rackX(st.rack);
-        target.current.set(x, 1.5, 0);
-        // portrait screens need more distance to fit the rack's width
-        desired.current.set(x, 1.58, narrow ? 5.6 : 3.6);
+        // stand back like a customer walking in: floor, plinth and neighbours visible
+        target.current.set(x, 1.28, 0);
+        desired.current.set(x, 1.52, narrow ? 6.2 : 4.35);
       }
     } else {
       const drop = p.version.modelConfig.source === 'template' ? TEMPLATES[p.garment].centerDrop : p.version.modelConfig.centerDrop;
       const x = rackX(p.garment);
       // on wide screens in detail mode, aim right of the garment so it sits left of the info panel
       const shift = st.mode === 'detail' && !narrow ? 0.24 : 0;
-      target.current.set(x + shift, RAIL_Y - drop + 0.02, DETAIL_Z);
-      const dist = (st.mode === 'customize' ? 1.9 : 2.1) * (narrow ? 1.3 : 1) * (p.garment === 'oversized' || p.garment === 'hoodie' ? 1.08 : 1);
-      desired.current.set(x + shift, RAIL_Y - drop + 0.08, DETAIL_Z + dist);
+      // a sleeve being designed: move in on it (the garment is turned so it faces the customer; it sits in the
+      // upper part of the garment, about 20 cm to the side)
+      const sleeve = st.mode === 'customize' && (st.side === 'sleeveL' || st.side === 'sleeveR') ? (st.side === 'sleeveL' ? 1 : -1) : 0;
+      const sx = sleeve * 0.19;
+      const sy = sleeve ? (p.garment === 'full-sleeve' || p.garment === 'hoodie' ? 0.08 : 0.16) : 0;
+      target.current.set(x + shift + sx, RAIL_Y - drop + 0.02 + sy, DETAIL_Z);
+      const dist = (st.mode === 'customize' ? 1.9 : 2.1) * (narrow ? 1.3 : 1) * (p.garment === 'oversized' || p.garment === 'hoodie' ? 1.08 : 1) * (sleeve ? 0.6 : 1);
+      desired.current.set(x + shift + sx * 0.6, RAIL_Y - drop + 0.08 + sy, DETAIL_Z + dist);
     }
     base.current.copy(desired.current);
     animating.current = true;
@@ -516,9 +590,11 @@ export function ShowroomCanvas({ products, mobile, onError }: { products: Public
     <Canvas
       shadows
       dpr={mobile ? [1, 1.5] : [1, 1.75]}
-      camera={{ fov: 32, near: 0.05, far: 60, position: [rackX('half-sleeve'), 1.45, 3.5] }}
+      camera={{ fov: 32, near: 0.05, far: 60, position: [rackX('half-sleeve'), 1.52, 4.35] }}
       gl={{ antialias: true, toneMapping: THREE.NeutralToneMapping, toneMappingExposure: 1.0, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
+        gl.domElement.setAttribute('role', 'img');
+        gl.domElement.setAttribute('aria-label', '3D boutique with garment racks. Hover a garment to turn it, click to inspect.');
         gl.domElement.addEventListener('webglcontextlost', (e) => {
           e.preventDefault();
           onError('The 3D view lost its graphics context. Reload the page to continue.');
@@ -527,7 +603,7 @@ export function ShowroomCanvas({ products, mobile, onError }: { products: Public
       onPointerMissed={() => useShowroom.getState().setHovered(null)}
     >
       <color attach="background" args={[WALL]} />
-      <fog attach="fog" args={[WALL, 9, 30]} />
+      <fog attach="fog" args={[WALL, 12, 34]} />
       <Lights mobile={mobile} />
       <Room mobile={mobile} />
       {RACK_ORDER.map((c) => {
@@ -542,6 +618,7 @@ export function ShowroomCanvas({ products, mobile, onError }: { products: Public
         );
       })}
       <Veil />
+      <StudioBackdrop />
       <CameraRig products={products} />
       <CaptureBridge />
     </Canvas>
@@ -549,3 +626,4 @@ export function ShowroomCanvas({ products, mobile, onError }: { products: Public
 }
 
 for (const c of RACK_ORDER) useGLTF.preload(templateUrl(c));
+for (const p of ['ornate_mirror_01', 'potted_plant_01', 'potted_plant_02']) useGLTF.preload(`/models/props/${p}.glb`);

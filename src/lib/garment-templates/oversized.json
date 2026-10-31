@@ -1,7 +1,7 @@
 {
   "id": "oversized",
   "label": "Oversized T-shirt",
-  "version": 2,
+  "version": 3,
   "printableMeshes": [
     "Shirt"
   ],
@@ -13,8 +13,8 @@
     {
       "id": "front",
       "label": "Front",
-      "widthCm": 34.0,
-      "heightCm": 44.0,
+      "widthCm": 34,
+      "heightCm": 44,
       "uvRect": {
         "u0": 0.1576086956521739,
         "v0": 0.2608695652173913,
@@ -25,24 +25,50 @@
     {
       "id": "back",
       "label": "Back",
-      "widthCm": 34.0,
-      "heightCm": 50.0,
+      "widthCm": 34,
+      "heightCm": 50,
       "uvRect": {
         "u0": 0.6576086956521738,
         "v0": 0.23913043478260868,
         "u1": 0.8423913043478262,
         "v1": 0.782608695652174
       }
+    },
+    {
+      "id": "sleeveL",
+      "label": "Left sleeve",
+      "widthCm": 9,
+      "heightCm": 4.1,
+      "angle": -52.9,
+      "uvRect": {
+        "u0": 0.41141,
+        "v0": 0.638,
+        "u1": 0.46033,
+        "v1": 0.68265
+      }
+    },
+    {
+      "id": "sleeveR",
+      "label": "Right sleeve",
+      "widthCm": 9,
+      "heightCm": 4.1,
+      "angle": 52.9,
+      "uvRect": {
+        "u0": 0.03967,
+        "v0": 0.638,
+        "u1": 0.08859,
+        "v1": 0.68265
+      }
     }
   ],
   "span": 0.92,
   "z0": -0.04,
   "size": [
-    0.8492,
-    0.8024,
-    0.085
+    0.8655,
+    0.7998,
+    0.0497
   ],
-  "centerDrop": 0.4712,
+  "centerDrop": 0.4696,
   "simulated": true,
-  "triangles": 51666
+  "triangles": 52494
 }

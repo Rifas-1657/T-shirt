@@ -1,12 +1,15 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CATEGORY_INFO, classifyGarment, RACK_ORDER } from '@/lib/garments';
+import { CATEGORY_INFO, classifyProduct } from '@/lib/garments';
+import { BOTTLE_STYLES, BOTTLES, CAP_FINISHES, CONCENTRATIONS, DEFAULT_PERFUME, LIQUID_PRESETS } from '@/lib/perfume';
 import { isCustomizable } from '@/lib/printZones';
 import { TEMPLATE_ZONES } from '@/lib/template';
-import type { GarmentCategory, ImageLayer, Layer, PrintZone, Product, ProductColor, ProductVersion, ZoneId } from '@/lib/types';
+import type { CapFinish, ImageLayer, Layer, PerfumeSpec, PrintZone, Product, ProductColor, ProductVersion, ZoneId } from '@/lib/types';
+import { CATEGORY_CARDS, CategoryCards, PhotoManager, PhotoPicker, type Cat, type PendingPhotos } from './ProductMedia';
 
 const AdminPreview = dynamic(() => import('./AdminPreview').then((m) => m.AdminPreview), { ssr: false });
+const PerfumePreview = dynamic(() => import('./PerfumePreview'), { ssr: false });
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 type Msg = { kind: 'ok' | 'error'; text: string; href?: string } | null;
@@ -24,6 +27,7 @@ export function AdminDashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
+  const [pending, setPending] = useState<PendingPhotos>({ photos: [] });
 
   const reload = useCallback(async () => {
     const { products } = await api<{ products: Product[] }>('/api/admin/products');
@@ -55,34 +59,83 @@ export function AdminDashboard() {
           </button>
         </div>
         <button className="btn btn-primary mb-3 w-full" onClick={() => { setCreating(true); setSelectedId(null); }} data-testid="new-product">+ New product</button>
-        <ul className="space-y-1" data-testid="admin-product-list">
-          {products.map((p) => {
-            const live = p.versions.find((v) => v.id === p.liveVersionId);
+        <div className="space-y-4" data-testid="admin-product-list">
+          {CATEGORY_CARDS.map((c) => {
+            const list = products.filter((p) => (p.kind === 'perfume' ? 'perfume' : p.garment) === c.id);
+            if (!list.length) return null;
             return (
-              <li key={p.id}>
-                <button className={`w-full border px-3 py-2 text-left text-sm ${p.id === selectedId ? 'border-ink bg-bone' : 'border-line'}`} onClick={() => { setSelectedId(p.id); setCreating(false); setMsg(null); }}>
-                  <span className="block font-semibold">{p.title}</span>
-                  <span className="text-xs text-mute">{p.sku} · {CATEGORY_INFO[p.garment].label} · {live ? (p.active ? 'Live' : 'Inactive') : 'Unpublished'} · {p.versions.length} version(s)</span>
-                </button>
-              </li>
+              <section key={c.id} aria-label={c.label}>
+                <h3 className="mb-1 text-[0.68rem] tracking-[0.2em] text-mute uppercase">{c.id === 'perfume' ? 'Perfumes' : CATEGORY_INFO[c.id].plural} · {list.length}</h3>
+                <ul className="space-y-1">
+                  {list.map((p) => {
+                    const live = p.versions.find((v) => v.id === p.liveVersionId);
+                    const state = live ? (p.active ? 'Live' : 'Hidden') : 'Not published';
+                    return (
+                      <li key={p.id}>
+                        <button className={`flex w-full items-center gap-2 border px-3 py-2 text-left text-sm ${p.id === selectedId ? 'border-ink bg-bone' : 'border-line'}`} onClick={() => { setSelectedId(p.id); setCreating(false); setMsg(null); }}>
+                          <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${live && p.active ? 'bg-ok' : 'bg-line'}`} />
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold">{p.title}</span>
+                            <span className="text-xs text-mute">{p.sku} · {state}{p.kind === 'perfume' ? ` · ${p.photos?.length ?? 0} photo(s)` : ''}</span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             );
           })}
-        </ul>
+        </div>
       </aside>
       <section>
         {msg && <p role={msg.kind === 'error' ? 'alert' : 'status'} className={`mb-4 border px-3 py-2 text-sm ${msg.kind === 'error' ? 'border-danger text-danger' : 'border-ok text-ok'}`} data-testid="admin-msg">{msg.text}{msg.href && <> · <a className="font-semibold underline" href={msg.href} target="_blank" rel="noreferrer" data-testid="admin-msg-link">View in store ↗</a></>}</p>}
         {creating && (
           <ProductForm
-            onSubmit={async (data) => {
+            pending={pending}
+            setPending={setPending}
+            onSubmit={async ({ liquidIsDefault, ...data }) => {
+              let product: Product;
               try {
-                const { product } = await api<{ product: Product }>('/api/admin/products', json('POST', data));
-                await reload();
-                setCreating(false);
-                setSelectedId(product.id);
-                setMsg({ kind: 'ok', text: `Created ${product.title} on the ${CATEGORY_INFO[product.garment].plural} rack. Next: step 2, upload the front and back images.` });
+                ({ product } = await api<{ product: Product }>('/api/admin/products', json('POST', data)));
               } catch (e) {
                 setMsg({ kind: 'error', text: (e as Error).message });
+                return;
               }
+              // the product exists now: upload what was picked in step 2 straight away
+              const notes: string[] = [];
+              let failed = false;
+              try {
+                if (product.kind === 'perfume' && pending.photos.length) {
+                  const fd = new FormData();
+                  for (const p of pending.photos) {
+                    fd.append('photo', p.file);
+                    fd.append('view', p.view);
+                  }
+                  const r = await api<{ errors: string[]; notes: string[]; suggestedLiquid?: string }>(`/api/admin/products/${product.id}/photos`, { method: 'POST', body: fd });
+                  notes.push(...r.errors, ...r.notes);
+                  if (liquidIsDefault && r.suggestedLiquid && product.perfume)
+                    await api(`/api/admin/products/${product.id}`, json('PATCH', { perfume: { ...product.perfume, liquid: r.suggestedLiquid } }));
+                } else if (product.kind !== 'perfume' && (pending.front || pending.back)) {
+                  const fd = new FormData();
+                  if (pending.front) fd.append('front', pending.front);
+                  if (pending.back) fd.append('back', pending.back);
+                  await api(`/api/admin/products/${product.id}/images`, { method: 'POST', body: fd });
+                }
+              } catch (e) {
+                failed = true;
+                notes.push(`Photos were not saved: ${(e as Error).message} You can add them again below.`);
+              }
+              await reload();
+              setPending({ photos: [] });
+              setCreating(false);
+              setSelectedId(product.id);
+              const where = product.kind === 'perfume' ? 'the perfume salon' : `the ${CATEGORY_INFO[product.garment].plural} rack`;
+              const had = product.kind === 'perfume' ? pending.photos.length > 0 : !!(pending.front || pending.back);
+              setMsg({
+                kind: failed ? 'error' : 'ok',
+                text: `Created ${product.title} for ${where}. ${had && !failed ? 'Photos uploaded. ' : ''}Next: check the preview and press Publish.${notes.length ? ' ' + notes.join(' ') : ''}`,
+              });
             }}
           />
         )}
@@ -93,79 +146,193 @@ export function AdminDashboard() {
   );
 }
 
-function ProductForm({ initial, onSubmit, onGarmentChange }: { initial?: Product; onSubmit: (d: Record<string, unknown>) => Promise<unknown>; onGarmentChange?: (g: GarmentCategory) => Promise<unknown> }) {
+const catLabel = (c: Cat) => (c === 'perfume' ? 'Perfume' : CATEGORY_INFO[c].label);
+
+/** Suggested SKU from the category and the first words of the title (editable). */
+function suggestSku(cat: Cat | null, title: string) {
+  const prefix = cat === 'perfume' ? 'PF' : cat === 'hoodie' ? 'HD' : cat === 'oversized' ? 'OV' : cat === 'full-sleeve' ? 'LS' : 'TS';
+  const words = title.toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w && !['EAU', 'DE', 'THE', 'AND', 'TEE', 'T', 'SHIRT', 'PARFUM', 'PERFUME'].includes(w)).slice(0, 2);
+  return words.length ? `${prefix}-${words.map((w) => w.slice(0, 6)).join('-')}` : '';
+}
+
+export interface ProductFormData extends Record<string, unknown> {
+  /** client-only: the liquid colour was not chosen by hand, so a photo may suggest it */
+  liquidIsDefault?: boolean;
+}
+
+function ProductForm({
+  initial,
+  onSubmit,
+  onGarmentChange,
+  pending,
+  setPending,
+}: {
+  initial?: Product;
+  onSubmit: (d: ProductFormData) => Promise<unknown>;
+  onGarmentChange?: (g: Cat) => Promise<unknown>;
+  pending?: PendingPhotos;
+  setPending?: (p: PendingPhotos) => void;
+}) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [sku, setSku] = useState(initial?.sku ?? '');
+  const [skuTouched, setSkuTouched] = useState(!!initial);
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [category, setCategory] = useState(initial?.category ?? 'T-Shirts');
-  // '' = follow the automatic suggestion; otherwise an explicit admin override
-  const [garment, setGarment] = useState<GarmentCategory | ''>(initial?.garment ?? '');
+  const initialCat: Cat | '' = initial ? (initial.kind === 'perfume' ? 'perfume' : initial.garment) : '';
+  // '' = follow the automatic suggestion; otherwise an explicit admin choice
+  const [cat, setCat] = useState<Cat | ''>(initialCat);
   const [price, setPrice] = useState(String(initial?.price ?? ''));
-  const [sizes, setSizes] = useState<string[]>(initial?.sizes ?? ['S', 'M', 'L', 'XL']);
+  // until the admin picks a currency, it follows the category (perfumes are priced in QAR)
+  const [chosenCurrency, setCurrency] = useState<string | null>(initial?.currency ?? null);
+  const [sizes, setSizes] = useState<string[]>(initial?.sizes?.length ? initial.sizes : ['S', 'M', 'L', 'XL']);
   const [colors, setColors] = useState<ProductColor[]>(initial?.colors ?? [{ name: 'Chalk', hex: '#ece8df' }]);
+  const [perfume, setPerfumeState] = useState<PerfumeSpec>(initial?.perfume ?? DEFAULT_PERFUME);
+  const [liquidTouched, setLiquidTouched] = useState(!!initial);
   const [busy, setBusy] = useState(false);
-  const suggested = classifyGarment(title, description, category);
+  const suggested = classifyProduct(title);
+  const effective = cat || suggested;
+  const isPerfume = effective === 'perfume';
+  const currency = chosenCurrency ?? (isPerfume ? 'QAR' : 'USD');
+  const shownSku = skuTouched ? sku : suggestSku(effective, title);
+  const setPerfume = (s: PerfumeSpec) => {
+    if (s.liquid !== perfume.liquid) setLiquidTouched(true);
+    setPerfumeState(s);
+  };
+  const pick = (c: Cat) => {
+    setCat(c);
+    // existing products: the rack / salon changes immediately (no hidden unsaved state)
+    if (onGarmentChange && initial && c !== initialCat) void onGarmentChange(c);
+  };
   return (
     <form
-      className="max-w-2xl space-y-3 border border-line bg-bone p-5"
+      className="space-y-5 border border-line bg-bone p-5"
       data-testid="product-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (!effective) return;
         setBusy(true);
-        await onSubmit({ title, sku, description, category, price: Number(price), sizes, colors, garment: garment || suggested || undefined });
+        const base = { title, sku: shownSku, description, price: Number(price), currency, garment: effective };
+        await onSubmit(isPerfume ? { ...base, perfume, liquidIsDefault: !liquidTouched } : { ...base, sizes, colors });
         setBusy(false);
       }}
     >
       <h2 className="font-display text-2xl">{initial ? 'Product details' : 'New product'}</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-xs">Title<input className="field mt-1" value={title} onChange={(e) => setTitle(e.target.value)} required data-testid="pf-title" /></label>
-        <label className="text-xs">SKU<input className="field mt-1" value={sku} onChange={(e) => setSku(e.target.value)} required data-testid="pf-sku" /></label>
-        <label className="text-xs">Display category<input className="field mt-1" value={category} onChange={(e) => setCategory(e.target.value)} /></label>
-        <label className="text-xs">Price (USD)<input className="field mt-1" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required data-testid="pf-price" /></label>
-      </div>
-      <fieldset className="border border-line p-3" data-testid="garment-field">
-        <legend className="px-1 text-xs">Garment type → rack &amp; 3D template</legend>
-        <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Garment type">
-          {RACK_ORDER.map((c) => (
-            <button type="button" key={c} role="radio" aria-checked={(garment || suggested) === c} className="chip" onClick={() => {
-                setGarment(c);
-                // existing products: the rack changes immediately (no hidden unsaved state)
-                if (onGarmentChange && initial && c !== initial.garment) void onGarmentChange(c);
-              }} data-testid={`pf-garment-${c}`}>
-              {CATEGORY_INFO[c].label}
-            </button>
-          ))}
-        </div>
+      <section>
+        <h3 className="mb-2 text-sm font-semibold">{initial ? 'Category' : '1 · What are you adding?'}</h3>
+        <CategoryCards value={cat} suggested={suggested} onPick={pick} />
         <p className="mt-2 text-xs text-mute" data-testid="garment-hint">
-          {garment
-            ? <>Set manually.{suggested && suggested !== garment ? ` (Text suggests ${CATEGORY_INFO[suggested].label}.)` : ''} <button type="button" className="underline" onClick={() => setGarment('')}>Use automatic</button></>
+          {cat
+            ? <>Selected: {catLabel(cat)}.{suggested && suggested !== cat ? ` (The name suggests ${catLabel(suggested)}.)` : ''}{!initial && <> <button type="button" className="underline" onClick={() => setCat('')}>Use automatic</button></>}</>
             : suggested
-              ? `Automatic: ${CATEGORY_INFO[suggested].label}, detected from the title/description. Click another type to override.`
-              : 'Could not detect the type from the text — choose one.'}
+              ? `Automatic: ${catLabel(suggested)}, detected from the name. Click another card to change it.`
+              : 'Choose a card, or type the name below and it will be detected.'}
         </p>
-      </fieldset>
-      <label className="block text-xs">Description<textarea className="field mt-1" rows={3} maxLength={600} value={description} onChange={(e) => setDescription(e.target.value)} /></label>
-      <fieldset>
-        <legend className="text-xs">Sizes</legend>
-        <div className="mt-1 flex gap-1">
-          {SIZES.map((s) => (
-            <button type="button" key={s} className="chip" aria-pressed={sizes.includes(s)} onClick={() => setSizes((v) => (v.includes(s) ? v.filter((x) => x !== s) : [...v, s]))}>{s}</button>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend className="text-xs">Base colours</legend>
-        {colors.map((c, i) => (
-          <div key={i} className="mt-1 flex gap-2">
-            <input className="field" value={c.name} onChange={(e) => setColors((cs) => cs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} aria-label="Colour name" />
-            <input type="color" className="field w-16 p-1" value={c.hex} onChange={(e) => setColors((cs) => cs.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)))} aria-label="Colour value" />
-            <button type="button" className="chip" onClick={() => setColors((cs) => cs.filter((_, j) => j !== i))} disabled={colors.length === 1} aria-label="Remove colour">✕</button>
+      </section>
+      {!initial && pending && setPending && effective && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">2 · Photos {isPerfume ? '(the bottle as customers will see it)' : '(front and back)'}</h3>
+          <PhotoPicker isPerfume={isPerfume} value={pending} onChange={setPending} />
+        </section>
+      )}
+      <section className="space-y-3">
+        {!initial && <h3 className="text-sm font-semibold">3 · Details</h3>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs">Name<input className="field mt-1" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder={isPerfume ? 'e.g. Rose Royale Eau de Parfum' : 'e.g. Embrace Oversized Tee'} data-testid="pf-title" /></label>
+          <label className="text-xs">SKU<input className="field mt-1" value={shownSku} onChange={(e) => { setSkuTouched(true); setSku(e.target.value); }} required data-testid="pf-sku" /></label>
+          <div className="grid grid-cols-[1fr_6rem] gap-2">
+            <label className="text-xs">Price<input className="field mt-1" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required data-testid="pf-price" /></label>
+            <label className="text-xs">Currency
+              <select className="field mt-1" value={currency} onChange={(e) => setCurrency(e.target.value)} data-testid="pf-currency">
+                <option value="USD">USD</option>
+                <option value="QAR">QAR</option>
+              </select>
+            </label>
           </div>
-        ))}
-        <button type="button" className="mt-2 text-xs underline" onClick={() => setColors((cs) => [...cs, { name: 'New colour', hex: '#888888' }])}>+ Add colour</button>
-      </fieldset>
-      <button className="btn btn-primary" disabled={busy} data-testid="pf-submit">{busy ? 'Saving…' : initial ? 'Save details' : 'Create product'}</button>
+        </div>
+        <label className="block text-xs">Description<textarea className="field mt-1" rows={2} maxLength={600} value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+        {isPerfume ? (
+          <PerfumeFields spec={perfume} onChange={setPerfume} liquidHint={!initial && !liquidTouched && !!pending?.photos.length ? 'Will be taken from your photo — or pick one.' : undefined} />
+        ) : (
+          <>
+            <fieldset>
+              <legend className="text-xs">Sizes</legend>
+              <div className="mt-1 flex gap-1">
+                {SIZES.map((s) => (
+                  <button type="button" key={s} className="chip" aria-pressed={sizes.includes(s)} onClick={() => setSizes((v) => (v.includes(s) ? v.filter((x) => x !== s) : [...v, s]))}>{s}</button>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend className="text-xs">Base colours {!initial && pending?.front ? <span className="text-mute">(a product photo sets the first colour automatically)</span> : null}</legend>
+              {colors.map((c, i) => (
+                <div key={i} className="mt-1 flex gap-2">
+                  <input className="field" value={c.name} onChange={(e) => setColors((cs) => cs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} aria-label="Colour name" />
+                  <input type="color" className="field w-16 p-1" value={c.hex} onChange={(e) => setColors((cs) => cs.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)))} aria-label="Colour value" />
+                  <button type="button" className="chip" onClick={() => setColors((cs) => cs.filter((_, j) => j !== i))} disabled={colors.length === 1} aria-label="Remove colour">✕</button>
+                </div>
+              ))}
+              <button type="button" className="mt-2 text-xs underline" onClick={() => setColors((cs) => [...cs, { name: 'New colour', hex: '#888888' }])}>+ Add colour</button>
+            </fieldset>
+          </>
+        )}
+      </section>
+      <button className="btn btn-primary" disabled={busy || !effective} data-testid="pf-submit">
+        {busy ? (initial ? 'Saving…' : 'Creating and uploading…') : initial ? 'Save details' : `Create ${effective ? catLabel(effective).toLowerCase() : 'product'}`}
+      </button>
     </form>
+  );
+}
+
+/** Perfume presentation: bottle, juice colour, cap, volume, concentration and notes. */
+function PerfumeFields({ spec, onChange, liquidHint }: { spec: PerfumeSpec; onChange: (s: PerfumeSpec) => void; liquidHint?: string }) {
+  const set = (patch: Partial<PerfumeSpec>) => onChange({ ...spec, ...patch });
+  const notes = (k: 'top' | 'heart' | 'base') => (
+    <label className="text-xs capitalize">{k} notes
+      <input className="field mt-1" value={spec.notes[k].join(', ')} onChange={(e) => set({ notes: { ...spec.notes, [k]: e.target.value.split(',').map((s) => s.trimStart()) } })} placeholder="Comma separated" data-testid={`pf-notes-${k}`} />
+    </label>
+  );
+  return (
+    <fieldset className="space-y-3 border border-line p-3" data-testid="perfume-fields">
+      <legend className="px-1 text-xs">Perfume</legend>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="text-xs">Volume (ml)<input className="field mt-1" type="number" min={5} max={500} value={spec.volumeMl} onChange={(e) => set({ volumeMl: Number(e.target.value) })} data-testid="pf-volume" /></label>
+        <label className="text-xs">Concentration
+          <select className="field mt-1" value={spec.concentration} onChange={(e) => set({ concentration: e.target.value })}>
+            {CONCENTRATIONS.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="text-xs">Family<input className="field mt-1" value={spec.family} onChange={(e) => set({ family: e.target.value })} placeholder="e.g. Oriental · Woody" /></label>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">{notes('top')}{notes('heart')}{notes('base')}</div>
+      <details className="text-xs" open={!liquidHint}>
+        <summary className="cursor-pointer font-semibold">3D bottle (used when there are no photos, and as the label colours)</summary>
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Bottle">
+            {BOTTLE_STYLES.map((b) => (
+              <button type="button" key={b} role="radio" aria-checked={spec.bottle === b} className="chip" onClick={() => set({ bottle: b })} data-testid={`pf-bottle-${b}`}>
+                {BOTTLES[b].label} <span className="ml-1 font-normal opacity-60">{BOTTLES[b].blurb}</span>
+              </button>
+            ))}
+          </div>
+          <div>
+            <p>Liquid colour {liquidHint && <span className="text-brass">— {liquidHint}</span>}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Liquid colour">
+              {LIQUID_PRESETS.map((l) => (
+                <button type="button" key={l.hex} role="radio" aria-checked={spec.liquid === l.hex} aria-label={l.name} title={l.name} onClick={() => set({ liquid: l.hex })} className={`h-8 w-8 rounded-full border-2 ${spec.liquid === l.hex ? 'border-ink' : 'border-line'}`} style={{ background: l.hex }} />
+              ))}
+              <input type="color" className="h-8 w-10 cursor-pointer border border-line bg-transparent p-0" value={spec.liquid} onChange={(e) => set({ liquid: e.target.value })} aria-label="Custom liquid colour" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Cap finish">
+            {(Object.keys(CAP_FINISHES) as CapFinish[]).map((c) => (
+              <button type="button" key={c} role="radio" aria-checked={spec.cap === c} className="chip gap-2" onClick={() => set({ cap: c })} data-testid={`pf-cap-${c}`}>
+                <span className="inline-block h-3 w-3 rounded-full" style={{ background: CAP_FINISHES[c].color }} />
+                {CAP_FINISHES[c].label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </details>
+    </fieldset>
   );
 }
 
@@ -178,7 +345,8 @@ function ProductEditor({ product, reload, setMsg }: { product: Product; reload: 
   const [versionId, setVersionId] = useState<string | null>(product.versions.at(-1)?.id ?? null);
   const version = product.versions.find((v) => v.id === versionId) ?? null;
   const live = product.versions.find((v) => v.id === product.liveVersionId);
-  const rack = CATEGORY_INFO[product.garment].plural;
+  const isPerfume = product.kind === 'perfume';
+  const rack = isPerfume ? 'perfume salon' : `${CATEGORY_INFO[product.garment].plural} rack`;
 
   const run = async (fn: () => Promise<unknown>, ok: string, href?: string) => {
     try {
@@ -219,7 +387,7 @@ function ProductEditor({ product, reload, setMsg }: { product: Product; reload: 
         <h2 className="font-display text-3xl">{product.title}</h2>
         {live && product.active ? (
           <span className="border border-ok px-2 py-1 text-xs text-ok" data-testid="live-status">
-            Live on the {rack} rack · <a className="underline" href={`/?product=${product.id}`} target="_blank" rel="noreferrer">View in store ↗</a>
+            Live on the {rack} · <a className="underline" href={isPerfume ? `/perfumes?p=${product.id}` : `/?product=${product.id}`} target="_blank" rel="noreferrer">View in store ↗</a>
           </span>
         ) : (
           <span className="border border-line px-2 py-1 text-xs text-mute" data-testid="live-status">Not in the store yet — follow the steps below</span>
@@ -244,20 +412,30 @@ function ProductEditor({ product, reload, setMsg }: { product: Product; reload: 
         )}
       </div>
 
+      {isPerfume ? (
+        <ol className="grid gap-2 text-xs sm:grid-cols-3" aria-label="Steps">
+          <li className="border border-line bg-bone p-3"><strong>1 · Photos</strong><br />Upload the bottle photos. On a plain light background the bottle is cut out automatically.</li>
+          <li className="border border-line bg-bone p-3"><strong>2 · Check &amp; publish</strong><br />See it on its plinth in the salon preview, then publish.</li>
+          <li className="border border-line bg-bone p-3"><strong>3 · Details</strong><br />Name, price, volume, notes; the 3D bottle used when there are no photos.</li>
+        </ol>
+      ) : (
       <ol className="grid gap-2 text-xs sm:grid-cols-3" aria-label="Steps">
-        <li className="border border-line bg-bone p-3"><strong>1 · Details &amp; rack</strong><br />Name, price, sizes, colours and the garment type (= which rack it hangs on).</li>
-        <li className="border border-line bg-bone p-3"><strong>2 · Front &amp; back images</strong><br />Product photos (garment on a plain background) or print artwork (PNG with transparency).</li>
-        <li className="border border-line bg-bone p-3"><strong>3 · Check &amp; publish</strong><br />Check the 3D preview, adjust if needed, tick the box and press Publish.</li>
+        <li className="border border-line bg-bone p-3"><strong>1 · Front &amp; back images</strong><br />Product photos (garment on a plain background) or print artwork (PNG with transparency).</li>
+        <li className="border border-line bg-bone p-3"><strong>2 · Check &amp; publish</strong><br />Check the 3D preview, adjust if needed, tick the box and press Publish.</li>
+        <li className="border border-line bg-bone p-3"><strong>3 · Details</strong><br />Name, price, sizes, colours and category (= which rack it hangs on).</li>
       </ol>
+      )}
 
-      <ProductForm
-        initial={product}
-        onSubmit={(d) => run(() => api(`/api/admin/products/${product.id}`, json('PATCH', d)), 'Details saved.')}
-        onGarmentChange={(g) => run(() => api(`/api/admin/products/${product.id}`, json('PATCH', { garment: g })), `Moved to the ${CATEGORY_INFO[g].plural} rack. Image-based designs now use the ${CATEGORY_INFO[g].label.toLowerCase()} template.`)}
-      />
 
+      {isPerfume ? (
+        <>
+          <PhotoManager product={product} reload={reload} onChanged={async (m) => { await reload(); setMsg(m); }} />
+          <PerfumePanel product={product} run={run} />
+        </>
+      ) : (
+        <>
       <section className="border border-line bg-bone p-5">
-        <h3 className="font-display text-2xl">2 · Front &amp; back images</h3>
+        <h3 className="font-display text-2xl">1 · Front &amp; back images</h3>
         <form
           className="mt-3 space-y-2"
           onSubmit={(e) => {
@@ -305,6 +483,19 @@ function ProductEditor({ product, reload, setMsg }: { product: Product; reload: 
         </section>
       )}
       {version && <VersionPanel key={version.id} product={product} version={version} run={run} />}
+        </>
+      )}
+
+      <ProductForm
+        initial={product}
+        onSubmit={(d) => run(() => api(`/api/admin/products/${product.id}`, json('PATCH', d)), 'Details saved.')}
+        onGarmentChange={(g) =>
+          run(
+            () => api(`/api/admin/products/${product.id}`, json('PATCH', { garment: g })),
+            g === 'perfume' ? 'Moved to the perfume salon. Fill in the perfume details and save.' : `Moved to the ${CATEGORY_INFO[g].plural} rack. Image-based designs now use the ${CATEGORY_INFO[g].label.toLowerCase()} template.`,
+          )
+        }
+      />
     </div>
   );
 }
@@ -356,7 +547,7 @@ function VersionPanel({ product, version, run }: { product: Product; version: Pr
     <section className="grid gap-6 border border-line bg-bone p-5 xl:grid-cols-[1fr_420px]" data-testid="version-panel">
       <div className="space-y-5">
         <div>
-          <h3 className="font-display text-2xl">{isImages ? '3 · Check & publish' : 'Model version'}</h3>
+          <h3 className="font-display text-2xl">{isImages ? '2 · Check & publish' : 'Model version'}</h3>
           <p className="mt-1 text-sm">
             Status: <strong data-testid="version-status">{isLive ? 'live' : version.status}</strong>
             {version.derivativeBytes ? ` · derivative ${(version.derivativeBytes / 1048576).toFixed(2)} MB` : ''}
@@ -517,7 +708,7 @@ function DetectedArtwork({ version, product }: { version: ProductVersion; produc
       })}
       <p className="text-xs sm:col-span-2">
         Base colour: <span className="mr-1 inline-block h-3 w-3 border border-line align-middle" style={{ background: product.colors[0]?.hex }} />
-        {product.colors[0]?.name} — edit the colours in step 1 if needed.
+        {product.colors[0]?.name} — edit the colours in step 3 (details) if needed.
       </p>
     </div>
   );
@@ -549,5 +740,52 @@ function PlacementControls({ layers, onChange, onReset }: { layers: Partial<Reco
         );
       })}
     </div>
+  );
+}
+
+/** Perfumes: live 3D bottle preview and one-click publish to the perfume salon. */
+function PerfumePanel({ product, run }: { product: Product; run: (fn: () => Promise<unknown>, ok: string, href?: string) => Promise<boolean> }) {
+  const [busy, setBusy] = useState(false);
+  const live = product.versions.find((v) => v.id === product.liveVersionId);
+  const spec = product.perfume;
+  const photo = product.photos?.[0];
+  if (!spec) return null;
+  const publish = async () => {
+    setBusy(true);
+    await run(
+      async () => {
+        const { version } = await api<{ version: ProductVersion }>(`/api/admin/products/${product.id}/perfume`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        await api(`/api/admin/products/${product.id}/publish`, json('POST', { versionId: version.id }));
+      },
+      `Published: ${product.title} is now in the perfume salon.`,
+      `/perfumes?p=${product.id}`,
+    );
+    setBusy(false);
+  };
+  return (
+    <section className="grid gap-6 border border-line bg-bone p-5 xl:grid-cols-[1fr_420px]" data-testid="perfume-panel">
+      <div className="space-y-3">
+        <h3 className="font-display text-2xl">2 · Check &amp; publish</h3>
+        <p className="text-sm">
+          {photo ? `${product.photos!.length} photo(s)` : `${BOTTLES[spec.bottle].label} bottle · ${CAP_FINISHES[spec.cap].label} cap`} · {spec.volumeMl} ml {spec.concentration}
+        </p>
+        <p className="text-xs text-mute">The preview shows the saved details. With photos, the salon shows your first photo; without photos it shows the 3D bottle from the details in step 3. Perfumes are presented as crafted: customers cannot customise them.</p>
+        {live && <p className="text-xs text-brass">This perfume is live. Publishing again updates the salon with the saved details.</p>}
+        <button className="btn btn-primary" disabled={busy} onClick={publish} data-testid="publish-perfume">
+          {busy ? 'Publishing…' : live ? 'Update in the perfume salon' : 'Publish to the perfume salon'}
+        </button>
+      </div>
+      {photo ? (
+        // what the salon shows: the first photo standing on a plinth
+        <figure className="relative flex h-[420px] items-end justify-center overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,#7a1d36,#2a0710_75%)]" data-testid="perfume-photo-preview">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.useCutout && photo.cutoutUrl ? photo.cutoutUrl : photo.url} alt={`${product.title} as shown in the salon`} className={`relative z-10 mb-[86px] max-h-[270px] max-w-[70%] object-contain ${photo.useCutout && photo.cutoutUrl ? 'drop-shadow-[0_18px_14px_rgba(0,0,0,0.45)]' : 'border-4 border-[#e9dfcf]'}`} />
+          <span aria-hidden className="absolute bottom-0 h-[92px] w-[58%] bg-gradient-to-b from-[#f3ede4] to-[#cfc5b6] shadow-[0_-2px_0_#b89a5e_inset]" />
+          <figcaption className="absolute left-3 top-3 text-[0.68rem] uppercase tracking-[0.2em] text-[#f3dfc6]">Salon preview · photo {product.photos!.length > 1 ? `1 of ${product.photos!.length}` : ''}</figcaption>
+        </figure>
+      ) : (
+        <PerfumePreview title={product.title} spec={spec} />
+      )}
+    </section>
   );
 }

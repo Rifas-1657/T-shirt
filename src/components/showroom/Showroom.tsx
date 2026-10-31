@@ -9,7 +9,7 @@ import { CATEGORY_INFO, RACK_ORDER } from '@/lib/garments';
 import { isCustomizable } from '@/lib/printZones';
 import type { PublicProduct, SavedDesign } from '@/lib/types';
 import { useDesign } from '@/store/designStore';
-import { useShowroom, type RackView } from '@/store/showroomStore';
+import { useShowroom, type RackView, type Side } from '@/store/showroomStore';
 import { openProduct } from '@/store/actions';
 import { captureRef } from '@/lib/capture';
 
@@ -132,6 +132,7 @@ export function Showroom({ initialProducts }: { initialProducts: PublicProduct[]
     }
   };
 
+  const studio = mode === 'customize' && !mobile;
   const canvasClass = mode !== 'customize' ? 'inset-0' : mobile ? 'inset-x-0 top-0 h-[44vh]' : 'inset-y-0 right-0 left-[min(460px,40vw)]';
 
   const customizable = selected ? isCustomizable(selected.version.modelConfig) : false;
@@ -148,12 +149,13 @@ export function Showroom({ initialProducts }: { initialProducts: PublicProduct[]
       {/* header */}
       <header className={`pointer-events-none fixed inset-x-0 top-0 z-20 ${mode === 'customize' && !mobile ? 'left-[min(460px,40vw)]' : ''}`}>
         <div className="bg-ink py-1.5 text-center text-[0.68rem] tracking-[0.2em] text-bone uppercase">Printed to order in our atelier · Free returns on blank pieces</div>
-        <div className="pointer-events-auto flex items-center justify-between px-5 py-4 md:px-10">
+        {/* over the dark studio (customising) the header turns light */}
+        <div className={`pointer-events-auto flex items-center justify-between px-5 py-4 transition-colors duration-500 md:px-10 ${studio ? 'text-[#efe6d8]' : ''}`}>
           <Link href="/" className="font-display text-2xl tracking-[0.14em]">ATELIER ÉCRU</Link>
-          <nav aria-label="Primary" className="eyebrow hidden gap-7 md:flex">
-            <span>New collection</span>
-            <span>Custom print</span>
-            <Link href="/admin" className="hover:text-ink">Admin</Link>
+          <nav aria-label="Primary" className={`eyebrow hidden gap-7 md:flex ${studio ? '!text-[#efe6d8]/70' : ''}`}>
+            <Link href="/" aria-current="page" className={`border-b ${studio ? 'border-[#efe6d8] text-[#efe6d8]' : 'border-ink text-ink'}`}>Apparel</Link>
+            <Link href="/perfumes" className={studio ? 'hover:text-[#efe6d8]' : 'hover:text-ink'} data-testid="nav-perfumes">Perfumes</Link>
+            <Link href="/admin" className={studio ? 'hover:text-[#efe6d8]' : 'hover:text-ink'}>Admin</Link>
           </nav>
         </div>
       </header>
@@ -200,7 +202,7 @@ export function Showroom({ initialProducts }: { initialProducts: PublicProduct[]
             </div>
             <button className="chip hidden sm:inline-flex" onClick={() => stepRack(1)} aria-label="Next rack" data-testid="rack-next">→</button>
           </nav>
-          <section className="fixed inset-x-0 bottom-0 z-10 pb-6 text-center" aria-label="Collection">
+          <section className="fixed inset-x-0 bottom-0 z-10 bg-gradient-to-t from-bone via-bone/85 to-transparent pt-14 pb-6 text-center" aria-label="Collection">
             <p className="font-display min-h-9 text-3xl" aria-live="polite" data-testid="caption">{caption ? caption.title : 'Select a piece'}</p>
             <p className="mb-4 text-xs text-mute">{caption ? `${CATEGORY_INFO[caption.garment].label} · ${money(caption)} · ${caption.colors.length} colours` : rackProducts.length ? 'Hover a garment, or choose below' : 'Nothing on this rack yet'}</p>
             <ul className="mx-auto flex max-w-full flex-wrap justify-center gap-2 px-4" data-testid="rack-products">
@@ -265,7 +267,7 @@ export function Showroom({ initialProducts }: { initialProducts: PublicProduct[]
   );
 }
 
-function ViewButtons({ side, setSide, resetView }: { side: 'front' | 'back'; setSide: (s: 'front' | 'back') => void; resetView: () => void }) {
+function ViewButtons({ side, setSide, resetView }: { side: Side; setSide: (s: Side) => void; resetView: () => void }) {
   return (
     <div className="mt-4 flex gap-1" role="group" aria-label="3D view">
       <button className="chip" aria-pressed={side === 'front'} onClick={() => setSide('front')} data-testid="view-front">Front</button>

@@ -1,10 +1,47 @@
 // Shared domain types for the catalogue, garment models and customer designs.
 
-export type ZoneId = 'front' | 'back';
+/** Print zones: chest/back panels, and the outer face of each sleeve (wearer's left / right). */
+export type ZoneId = 'front' | 'back' | 'sleeveL' | 'sleeveR';
+export const ZONE_IDS: ZoneId[] = ['front', 'back', 'sleeveL', 'sleeveR'];
+export const emptyZones = (): Record<ZoneId, Layer[]> => ({ front: [], back: [], sleeveL: [], sleeveR: [] });
 
 /** Which rack a product hangs on and which garment template it uses. */
 export type GarmentCategory = 'half-sleeve' | 'full-sleeve' | 'oversized' | 'hoodie';
 export const GARMENT_CATEGORIES: GarmentCategory[] = ['half-sleeve', 'full-sleeve', 'oversized', 'hoodie'];
+
+/** Department: apparel hangs on the racks; perfumes live in the perfume salon (no customisation). */
+export type ProductKind = 'apparel' | 'perfume';
+export type BottleStyle = 'qasr' | 'ward' | 'majlis';
+export type CapFinish = 'gold' | 'rose-gold' | 'silver' | 'onyx';
+
+/** Which side/angle of the product a photo shows (perfumes: drag through them like a 360° spin). */
+export type PhotoView = 'front' | 'angle' | 'side' | 'back' | 'detail';
+
+export interface ProductPhoto {
+  id: string;
+  view: PhotoView;
+  /** The uploaded photo (validated). */
+  url: string;
+  /** Background removed (transparent PNG), when the photo was shot on a plain light background. */
+  cutoutUrl?: string;
+  /** Show the cut-out (true) or the original framed photo (false). */
+  useCutout: boolean;
+  /** AI background removal for photos on a busy background: running in the background, or failed. */
+  cutout?: 'working' | 'failed';
+  width: number;
+  height: number;
+}
+
+export interface PerfumeSpec {
+  bottle: BottleStyle;
+  /** Colour of the juice, #rrggbb. */
+  liquid: string;
+  cap: CapFinish;
+  volumeMl: number;
+  concentration: string;
+  family: string;
+  notes: { top: string[]; heart: string[]; base: string[] };
+}
 
 /** Rectangle in the garment's UV0 space (v grows upward, as in glTF UVs after flipY handling). */
 export interface UvRect {
@@ -21,6 +58,9 @@ export interface PrintZone {
   /** Physical print size, used for the editor aspect ratio and print-file DPI. */
   widthCm: number;
   heightCm: number;
+  /** Rotation of the zone in the print atlas (degrees, clockwise), for zones that follow a sleeve.
+   * `uvRect` is then the unrotated box centred on the zone; the editor always shows it upright. */
+  angle?: number;
 }
 
 export interface ModelConfig {
@@ -74,7 +114,7 @@ export interface ProductVersion {
   id: string;
   createdAt: string;
   status: VersionStatus;
-  pathway: 'glb' | 'template-images';
+  pathway: 'glb' | 'template-images' | 'perfume';
   modelConfig: ModelConfig;
   /** Template-based versions: which garment template the artwork is mapped onto. */
   templateId?: GarmentCategory;
@@ -100,7 +140,13 @@ export interface Product {
   title: string;
   description: string;
   category: string;
-  /** Rack/template assignment. Set by the admin (auto-suggested from the product text). */
+  /** apparel (default) or perfume. */
+  kind?: ProductKind;
+  /** Perfume products only. */
+  perfume?: PerfumeSpec;
+  /** Product photos (perfumes): shown in the salon and in the detail viewer. */
+  photos?: ProductPhoto[];
+  /** Rack/template assignment for apparel (auto-suggested from the product text). Unused for perfumes. */
   garment: GarmentCategory;
   price: number;
   currency: string;
@@ -121,6 +167,9 @@ export interface PublicProduct {
   title: string;
   description: string;
   category: string;
+  kind: ProductKind;
+  perfume?: PerfumeSpec;
+  photos?: ProductPhoto[];
   garment: GarmentCategory;
   price: number;
   currency: string;

@@ -17,6 +17,8 @@ export const MAPPING_TEST: Record<ZoneId, Layer[]> = {
     { id: 'tbc', type: 'text', text: 'BACK CENTER', font: 'sans', fontSize: 0.08, fill: '#1e7a46', weight: 700, letterSpacing: 0.02, x: 0.5, y: 0.25, rotation: 0, scale: 1, opacity: 1 },
     { id: 'tbr', type: 'text', text: 'R →', font: 'sans', fontSize: 0.06, fill: '#1f4e79', weight: 700, letterSpacing: 0, x: 0.85, y: 0.6, rotation: 0, scale: 1, opacity: 1 },
   ],
+  sleeveL: [{ id: 'tsl', type: 'text', text: 'L ↑', font: 'sans', fontSize: 0.2, fill: '#8e44ad', weight: 700, letterSpacing: 0, x: 0.5, y: 0.4, rotation: 0, scale: 1, opacity: 1 }],
+  sleeveR: [{ id: 'tsr', type: 'text', text: 'R ↑', font: 'sans', fontSize: 0.2, fill: '#d35400', weight: 700, letterSpacing: 0, x: 0.5, y: 0.4, rotation: 0, scale: 1, opacity: 1 }],
 };
 
 class ErrorBoundary extends Component<{ children: ReactNode; onError: (m: string) => void }, { failed: boolean }> {

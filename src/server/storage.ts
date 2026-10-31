@@ -6,6 +6,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { classifyGarment, isGarmentCategory, templateModelConfig } from '@/lib/garments';
+import { perfumeModelConfig } from '@/lib/perfume';
 import type { GarmentCategory, Product, PublicProduct, SavedDesign } from '@/lib/types';
 
 // runtime data lives outside the bundle; tell Turbopack not to trace it
@@ -52,8 +53,14 @@ function serial<T>(fn: () => Promise<T>): Promise<T> {
  */
 export function normalizeProduct(p: Product): Product {
   const garment: GarmentCategory = isGarmentCategory(p.garment) ? p.garment : (classifyGarment(p.title, p.description, p.category) ?? 'half-sleeve');
+  if (p.kind === 'perfume' && p.perfume) {
+    // perfume versions always use the current bottle template of the chosen style
+    const perfume = p.perfume;
+    return { ...p, garment, versions: p.versions.map((v) => (v.pathway === 'perfume' ? { ...v, modelConfig: perfumeModelConfig(perfume.bottle) } : v)) };
+  }
   return {
     ...p,
+    kind: 'apparel',
     garment,
     versions: p.versions.map((v) =>
       v.modelConfig.source === 'template' ? { ...v, templateId: garment, modelConfig: templateModelConfig(garment) } : v,
@@ -89,6 +96,9 @@ export function toPublic(p: Product): PublicProduct | null {
     title: p.title,
     description: p.description,
     category: p.category,
+    kind: p.kind ?? 'apparel',
+    perfume: p.kind === 'perfume' ? p.perfume : undefined,
+    photos: p.photos?.length ? p.photos : undefined,
     garment: p.garment,
     price: p.price,
     currency: p.currency,

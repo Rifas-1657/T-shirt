@@ -92,3 +92,36 @@ describe('renderAtlas', () => {
     expect(referencedImages({ front: [img, { ...img, id: 'j' }], back: [text({})] })).toEqual(['/api/uploads/abcdefgh']);
   });
 });
+
+describe('sleeve zones', () => {
+  it('draws a sleeve print rotated to follow the sleeve, centred on its zone', async () => {
+    const t = (await import('@/lib/garment-templates/half-sleeve.json')).default as { printZones: import('@/lib/types').PrintZone[] };
+    const sleeve = t.printZones.find((z) => z.id === 'sleeveL')!;
+    expect(sleeve.angle).toBeLessThan(-20); // the sleeve slopes down and out
+    const { ctx, calls } = recorder();
+    renderAtlas(ctx, W, H, { config: { printZones: [sleeve] }, zones: { sleeveL: [text({ text: 'LOGO', x: 0.5, y: 0.5 })] }, images: new Map() });
+    const fill = calls.find((c) => c.op === 'fillText')!;
+    const box = zoneToAtlasRect(sleeve.uvRect, W, H);
+    // the text's origin lands on the zone centre...
+    expect(fill.m[4]).toBeCloseTo(box.left + box.width / 2, 3);
+    expect(fill.m[5]).toBeCloseTo(box.top + box.height / 2, 3);
+    // ...and its x axis is turned by the zone angle
+    expect((Math.atan2(fill.m[1], fill.m[0]) * 180) / Math.PI).toBeCloseTo(sleeve.angle!, 3);
+    // the clip is the unrotated box in the zone's own frame
+    const clip = calls.find((c) => c.op === 'rect')!;
+    expect(clip.args).toEqual([-box.width / 2, -box.height / 2, box.width, box.height]);
+  });
+
+  it('every template has a left and right sleeve zone, mirrored', async () => {
+    for (const cat of ['half-sleeve', 'full-sleeve', 'oversized', 'hoodie']) {
+      const t = (await import(`@/lib/garment-templates/${cat}.json`)).default as { printZones: import('@/lib/types').PrintZone[] };
+      const l = t.printZones.find((z) => z.id === 'sleeveL')!;
+      const r = t.printZones.find((z) => z.id === 'sleeveR')!;
+      expect(l.angle).toBeCloseTo(-r.angle!, 5);
+      // left sleeve on the viewer's right half of the front panel (u in 0.25..0.5), right sleeve mirrored
+      expect((l.uvRect.u0 + l.uvRect.u1) / 2).toBeGreaterThan(0.25);
+      expect((r.uvRect.u0 + r.uvRect.u1) / 2).toBeLessThan(0.25);
+      expect((l.uvRect.u0 + l.uvRect.u1) / 2 + (r.uvRect.u0 + r.uvRect.u1) / 2).toBeCloseTo(0.5, 4);
+    }
+  });
+});

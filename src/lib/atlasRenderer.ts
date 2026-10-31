@@ -97,8 +97,15 @@ function drawLayer(ctx: Ctx2D, layer: Layer, rect: PixelRect, zone: PrintZone, o
 export function renderAtlas(ctx: Ctx2D, width: number, height: number, opts: RenderOptions): void {
   ctx.clearRect(0, 0, width, height);
   for (const zone of opts.config.printZones) {
-    const rect = zoneToAtlasRect(zone.uvRect, width, height);
+    const box = zoneToAtlasRect(zone.uvRect, width, height);
     ctx.save();
+    // a zone that follows a sleeve is drawn in its own rotated frame, centred on the zone
+    let rect = box;
+    if (zone.angle) {
+      ctx.translate(box.left + box.width / 2, box.top + box.height / 2);
+      ctx.rotate((zone.angle * Math.PI) / 180);
+      rect = { left: -box.width / 2, top: -box.height / 2, width: box.width, height: box.height };
+    }
     ctx.beginPath();
     ctx.rect(rect.left, rect.top, rect.width, rect.height);
     ctx.clip();

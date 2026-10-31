@@ -20,3 +20,12 @@ references/
 docs/video-frames/
 # raw texture dumps from the GLB inspection (large; reproducible with scripts/blender/inspect_glb.py)
 docs/glb-inspection/atlas_*.png
+
+# downloaded AI model (npm run models)
+/models/
+
+# downloaded candidate images (Unsplash photos may not be redistributed as files; no longer used)
+assets/incoming/
+# re-downloadable / re-renderable sources (npm run assets:props; scripts/blender/render_perfume_shots.py)
+assets/processed/polyhaven/
+assets/processed/perfume-shots/**/*.png

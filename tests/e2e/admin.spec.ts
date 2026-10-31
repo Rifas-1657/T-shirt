@@ -176,7 +176,7 @@ test.describe('admin product workflow', () => {
     const p = (await pub())!;
     expect(p.garment).toBe('oversized');
     expect(p.colors[0].name).toBe('Black');
-    expect(p.version.modelConfig.modelUrl).toBe('/models/garments/oversized-v2.glb');
+    expect(p.version.modelConfig.modelUrl).toBe('/models/garments/oversized-v3.glb');
     expect(p.version.baseLayers.front[0].scale).toBeCloseTo(0.9);
     expect(p.version.baseLayers.back ?? []).toHaveLength(0);
 
@@ -198,7 +198,7 @@ test.describe('admin product workflow', () => {
     // clear errors for an invalid category and an invalid placement
     const bad = await page.request.patch(`/api/admin/products/${p.id}`, { data: { garment: 'kimono' }, headers: { origin: 'http://localhost:3100' } });
     expect(bad.status()).toBe(422);
-    expect((await bad.json()).errors.join(' ')).toMatch(/half-sleeve, full-sleeve, oversized or hoodie/);
+    expect((await bad.json()).errors.join(' ')).toMatch(/half-sleeve, full-sleeve, oversized, hoodie or perfume/);
     const vid = (await adminProduct()).versions.at(-1)!.id;
     const badPlace = await page.request.patch(`/api/admin/products/${p.id}/versions/${vid}`, {
       data: { baseLayers: { front: [{ id: 'x', type: 'image', src: 'https://evil.example/x.png', width: 0.5, aspect: 1, name: 'x', x: 0.5, y: 0.5, rotation: 0, scale: 1, opacity: 1 }] } },
@@ -210,7 +210,7 @@ test.describe('admin product workflow', () => {
     // re-categorise from the admin: moves rack and template
     await page.getByTestId('pf-garment-hoodie').click();
     await expect(page.getByTestId('admin-msg')).toContainText('Moved to the Hoodies rack');
-    expect((await pub())!.version.modelConfig.modelUrl).toBe('/models/garments/hoodie-v2.glb');
+    expect((await pub())!.version.modelConfig.modelUrl).toBe('/models/garments/hoodie-v3.glb');
     await shop.goto('/');
     await waitForScene(shop);
     expect(await rackOf(p.id)).toBe('hoodie');

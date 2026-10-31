@@ -37,7 +37,7 @@ describe('garment templates (Blender v2)', () => {
       expect(TEMPLATES[cat].centerDrop).toBeGreaterThan(0.3);
       expect(TEMPLATES[cat].size[1]).toBeGreaterThan(0.6);
     }
-    expect(templateModelConfig('hoodie').modelUrl).toBe('/models/garments/hoodie-v2.glb');
+    expect(templateModelConfig('hoodie').modelUrl).toBe('/models/garments/hoodie-v3.glb');
   });
 });
 

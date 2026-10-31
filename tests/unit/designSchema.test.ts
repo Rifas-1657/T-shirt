@@ -4,7 +4,7 @@ import { templateModelConfig } from '@/lib/template';
 import type { PublicProduct } from '@/lib/types';
 
 const product: PublicProduct = {
-  id: 'p_test', sku: 'TST-1', title: 'Test Tee', description: '', category: 'T-Shirts', garment: 'half-sleeve', price: 50, currency: 'USD',
+  id: 'p_test', sku: 'TST-1', title: 'Test Tee', description: '', category: 'T-Shirts', kind: 'apparel', garment: 'half-sleeve', price: 50, currency: 'USD',
   sizes: ['S', 'M', 'L'], colors: [{ name: 'Chalk', hex: '#ece8df' }, { name: 'Onyx', hex: '#1d1d1f' }],
   version: { id: 'v_1', pathway: 'glb', modelConfig: templateModelConfig() },
 };

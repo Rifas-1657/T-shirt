@@ -45,7 +45,7 @@ function LayerNode({ layer, W, H, zone, onSelect, nodeRef, locked }: {
   const img = useImage(layer.type === 'image' ? layer.src : null);
   const zoneId = activeZone;
   const patch = (fn: (l: Layer) => Partial<Layer>) =>
-    live((d) => ({ ...d, zones: { ...d.zones, [zoneId]: d.zones[zoneId].map((l) => (l.id === layer.id ? ({ ...l, ...fn(l) } as Layer) : l)) } }));
+    live((d) => ({ ...d, zones: { ...d.zones, [zoneId]: (d.zones[zoneId] ?? []).map((l) => (l.id === layer.id ? ({ ...l, ...fn(l) } as Layer) : l)) } }));
   const common = {
     ref: nodeRef,
     x: layer.x * W,
@@ -167,9 +167,10 @@ export function DesignEditor({ product, onSave, saving, savedUrl, saveError }: {
 
   const addText = () => {
     const l: TextLayer = {
-      id: layerId(), type: 'text', text: activeZone === 'front' ? 'ATELIER' : 'BACK CENTER', font: 'serif', fontSize: 0.065,
+      id: layerId(), type: 'text', text: activeZone === 'back' ? 'BACK CENTER' : 'ATELIER', font: 'serif', fontSize: activeZone.startsWith('sleeve') ? 0.26 : 0.065,
       fill: design && isDark(design.color.hex) ? '#f4efe6' : '#1c1a17', weight: 600, letterSpacing: 0.06,
-      x: 0.5, y: 0.3, rotation: 0, scale: 1, opacity: 1,
+      // sleeves are small: the text starts centred and large enough to read
+      x: 0.5, y: activeZone.startsWith('sleeve') ? 0.5 : 0.3, rotation: 0, scale: 1, opacity: 1,
     };
     st.addLayer(l);
   };
@@ -198,7 +199,7 @@ export function DesignEditor({ product, onSave, saving, savedUrl, saveError }: {
 
   const onKey = useCallback((e: React.KeyboardEvent) => {
     const s = useDesign.getState();
-    const sel = s.design?.zones[s.activeZone].find((l) => l.id === s.selectedId);
+    const sel = s.design?.zones[s.activeZone]?.find((l) => l.id === s.selectedId);
     if (sel && (e.key === 'Delete' || e.key === 'Backspace')) {
       e.preventDefault();
       s.removeLayer(sel.id);
@@ -234,9 +235,9 @@ export function DesignEditor({ product, onSave, saving, savedUrl, saveError }: {
   return (
     <div className="flex flex-col gap-5" data-testid="design-editor">
       <div className="flex items-center justify-between gap-3">
-        <div role="tablist" aria-label="Print side" className="flex">
+        <div role="tablist" aria-label="Print side" className="flex flex-wrap gap-y-1">
           {cfg.printZones.map((z) => (
-            <button key={z.id} role="tab" aria-selected={activeZone === z.id} className="chip" onClick={() => switchZone(z.id)} data-testid={`zone-${z.id}`}>
+            <button key={z.id} role="tab" aria-selected={activeZone === z.id} className="chip whitespace-nowrap" onClick={() => switchZone(z.id)} data-testid={`zone-${z.id}`}>
               {z.label} <span className="ml-1 font-normal opacity-60">{z.widthCm}×{z.heightCm}cm</span>
             </button>
           ))}

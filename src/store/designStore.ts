@@ -95,7 +95,7 @@ export const useDesign = create<DesignState>((set, get) => ({
   },
   duplicateLayer: (id) => {
     const zone = get().activeZone;
-    const src = get().design?.zones[zone].find((l) => l.id === id);
+    const src = get().design?.zones[zone]?.find((l) => l.id === id);
     if (!src) return;
     const copy = { ...src, id: layerId(), x: Math.min(src.x + 0.05, 0.95), y: Math.min(src.y + 0.05, 0.95) };
     get().commit((d) => mapZone(d, zone, (ls) => [...ls, copy]));

@@ -8,16 +8,20 @@ mkdirSync('assets/processed/garments', { recursive: true });
 mkdirSync('public/models/garments', { recursive: true });
 mkdirSync('src/lib/garment-templates', { recursive: true });
 for (const cat of cats) {
-  const raw = `assets/processed/garments/${cat}-v2-raw.glb`;
+  const raw = `assets/processed/garments/${cat}-v3-raw.glb`;
   const meta = `assets/processed/garments/${cat}.json`;
   const t0 = Date.now();
-  const r = spawnSync(blender, ['-b', '--factory-startup', '-P', 'scripts/blender/build_garment.py', '--', cat, raw, meta, `assets/processed/garments/${cat}-v2.blend`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(blender, ['-b', '--factory-startup', '-P', 'scripts/blender/build_garment.py', '--', cat, raw, meta, `assets/processed/garments/${cat}-v3.blend`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const out = (r.stdout ?? '') + (r.stderr ?? '');
   writeFileSync(`assets/processed/garments/log-${cat}.txt`, out);
   if (r.status !== 0 || !out.includes('GARMENT_DONE')) { console.error(out.slice(-3000)); process.exit(1); }
-  const web = `public/models/garments/${cat}-v2.glb`;
+  const web = `public/models/garments/${cat}-v3.glb`;
   const o = spawnSync('gltf-transform', ['optimize', raw, web, '--texture-compress', 'webp', '--texture-size', '2048', '--compress', 'meshopt', '--simplify', 'false', '--weld', 'false', '--join', 'false', '--flatten', 'false', '--instance', 'false'], { encoding: 'utf8', shell: true });
   if (o.status !== 0) { console.error(o.stdout, o.stderr); process.exit(1); }
   copyFileSync(meta, `src/lib/garment-templates/${cat}.json`);
   console.log(`${cat}: ${((Date.now() - t0) / 1000).toFixed(0)} s, raw ${(statSync(raw).size / 1048576).toFixed(2)} MB -> web ${(statSync(web).size / 1048576).toFixed(2)} MB`);
 }
+// sleeve print zones (rotated to follow each sleeve) are added to the sidecars after the build
+const z = spawnSync(process.execPath, ['scripts/assets/sleeve-zones.mjs'], { encoding: 'utf8' });
+if (z.status !== 0) { console.error(z.stdout, z.stderr); process.exit(1); }
+console.log(z.stdout.trim());
